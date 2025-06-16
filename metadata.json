@@ -1,0 +1,6 @@
+{
+  "name": "React Chess Game",
+  "description": "A two-player chess game application built with React, TypeScript, and Tailwind CSS. Play locally with a friend.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
