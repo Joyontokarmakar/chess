@@ -1,7 +1,7 @@
 import React from 'react';
 import { BoardState, Position, PlayerColor, Theme, LayoutSettings } from '../types';
 import Square from './Square';
-import { getBoardClasses } from '../utils/styleUtils'; // Import the utility function
+import { getBoardClasses } from '../utils/styleUtils'; 
 
 interface BoardProps {
   boardState: BoardState;
@@ -11,7 +11,8 @@ interface BoardProps {
   currentPlayer: PlayerColor; 
   kingInCheckPosition: Position | null; 
   theme: Theme;
-  layoutSettings: LayoutSettings; // Added layoutSettings prop
+  layoutSettings: LayoutSettings;
+  lastMove: { from: Position; to: Position } | null; // Added lastMove prop
 }
 
 const Board: React.FC<BoardProps> = ({
@@ -19,11 +20,11 @@ const Board: React.FC<BoardProps> = ({
   onSquareClick,
   selectedPiecePosition,
   possibleMoves,
-  kingInCheckPosition, // currentPlayer is not used in this component directly
+  kingInCheckPosition,
   theme,
-  layoutSettings, // Destructure layoutSettings
+  layoutSettings,
+  lastMove, // Destructure lastMove
 }) => {
-  // Get board style classes using the utility function and current settings
   const currentBoardStyle = getBoardClasses(layoutSettings.boardStyleId, theme);
 
   return (
@@ -42,6 +43,9 @@ const Board: React.FC<BoardProps> = ({
           const isCurrentKingInCheckSquare = kingInCheckPosition ? 
             kingInCheckPosition[0] === rowIndex && kingInCheckPosition[1] === colIndex : false;
 
+          const isLastMoveFromSquare = !!(lastMove && lastMove.from[0] === rowIndex && lastMove.from[1] === colIndex);
+          const isLastMoveToSquare = !!(lastMove && lastMove.to[0] === rowIndex && lastMove.to[1] === colIndex);
+
           return (
             <Square
               key={`${rowIndex}-${colIndex}`}
@@ -53,8 +57,10 @@ const Board: React.FC<BoardProps> = ({
               isKingInCheck={isCurrentKingInCheckSquare}
               onClick={onSquareClick}
               theme={theme}
-              boardClasses={currentBoardStyle} // Pass the calculated board style classes
-              layoutSettings={layoutSettings} // Pass full layoutSettings for PieceDisplay in Square
+              boardClasses={currentBoardStyle} 
+              layoutSettings={layoutSettings}
+              isLastMoveFromSquare={isLastMoveFromSquare} // Pass down
+              isLastMoveToSquare={isLastMoveToSquare}   // Pass down
             />
           );
         })

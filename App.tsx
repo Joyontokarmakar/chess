@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { BoardState, PlayerColor, Position, PieceType, CastlingRights, GameStatus, Piece, GameMode, AIMove, OnlineGameState, Theme, SavedGame, LayoutSettings, BoardStyleId, PieceColorOption } from './types';
+import { BoardState, PlayerColor, Position, PieceType, CastlingRights, GameStatus, Piece, GameMode, AIMove, OnlineGameState, Theme, SavedGame, LayoutSettings, BoardStyleId, PieceColorOption, GameOverReason, TIME_OPTIONS } from './types';
 import { createInitialBoard, INITIAL_CASTLING_RIGHTS, AI_PLAYER_NAME, PIECE_SYMBOLS } from './constants';
 import Board from './components/Board';
 import GameInfo from './components/GameInfo';
@@ -11,14 +12,13 @@ import OnlineGameSetup from './components/OnlineGameSetup';
 import TurnIndicator from './components/TurnIndicator';
 import HallOfFame from './components/HallOfFame';
 import Logo from './components/Logo';
-import LayoutCustomizationModal from './components/LayoutCustomizationModal'; // Enabled import
+import LayoutCustomizationModal from './components/LayoutCustomizationModal';
+import TimeModeSelectionModal from './components/TimeModeSelectionModal'; 
+import ChessGuide from './components/ChessGuide'; 
+import OnlineWarningModal from './components/OnlineWarningModal'; // New Modal
 import { getComputerMove } from './utils/geminiApi';
 import { 
   saveHallOfFameEntry, 
-  getOnlineGameState, 
-  setOnlineGameState, 
-  clearOnlineGameState,
-  getOnlineGameStorageKey,
   getThemePreference, 
   setThemePreference,
   getSavedGames,
@@ -26,8 +26,13 @@ import {
   deleteSavedGame as deleteSavedGameFromStorage,
   clearAllSavedGames as clearAllSavedGamesFromStorage,
   getLayoutSettings as getLayoutSettingsFromStorage,
-  setLayoutSettings as setLayoutSettingsInStorage
+  setLayoutSettings as setLayoutSettingsInStorage,
+  getOnlineGameState, // Added for localStorage online play
+  setOnlineGameState, // Added for localStorage online play
+  getOnlineGameStorageKey // Added for localStorage online play
 } from './utils/localStorageUtils';
+
+// Firebase imports removed
 
 import {
   getPossibleMoves,
@@ -56,6 +61,8 @@ const App: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
 
   const [gameMode, setGameMode] = useState<GameMode>(null);
+  const [isGameSetupPending, setIsGameSetupPending] = useState<boolean>(false); 
+  const [isTimeModeSelectionOpen, setIsTimeModeSelectionOpen] = useState<boolean>(false);
   const [isGameSetupComplete, setIsGameSetupComplete] = useState<boolean>(false);
   const [viewingHallOfFame, setViewingHallOfFame] = useState<boolean>(false);
 
@@ -71,17 +78,29 @@ const App: React.FC = () => {
   const [promotionSquare, setPromotionSquare] = useState<Position | null>(null);
   const [kingInCheckPosition, setKingInCheckPosition] = useState<Position | null>(null);
   const [gameStatus, setGameStatus] = useState<GameStatus>({ message: `Open menu or select a mode to start.`, isGameOver: false });
+  const [lastMove, setLastMove] = useState<{ from: Position; to: Position } | null>(null);
 
-  const [capturedByWhite, setCapturedByWhite] = useState<Piece[]>([]);
-  const [capturedByBlack, setCapturedByBlack] = useState<Piece[]>([]);
+
+  const [capturedByWhite, setCapturedByWhite] = useState<Piece[]>([]); 
+  const [capturedByBlack, setCapturedByBlack] = useState<Piece[]>([]); 
+
 
   const [isComputerThinking, setIsComputerThinking] = useState<boolean>(false);
 
-  const [onlineGameId, setOnlineGameId] = useState<string | null>(null);
-  const [localPlayerColor, setLocalPlayerColor] = useState<PlayerColor | null>(null); 
-  const [isOnlineGameReady, setIsOnlineGameReady] = useState<boolean>(false);
-  
-  const lastProcessedMoveByRef = useRef<PlayerColor | null>(null);
+  // Timer states
+  const [timeLimitPerPlayer, setTimeLimitPerPlayer] = useState<number | null>(null);
+  const [player1TimeLeft, setPlayer1TimeLeft] = useState<number | null>(null);
+  const [player2TimeLeft, setPlayer2TimeLeft] = useState<number | null>(null);
+  const [gameStartTimeStamp, setGameStartTimeStamp] = useState<number | null>(null);
+  const timerIntervalRef = useRef<number | null>(null);
+
+  // Online game state (localStorage based)
+  const [onlineGameIdForStorage, setOnlineGameIdForStorage] = useState<string | null>(null);
+  const [localPlayerColorForStorage, setLocalPlayerColorForStorage] = useState<PlayerColor | null>(null);
+  const [isOnlineGameReadyForStorage, setIsOnlineGameReadyForStorage] = useState<boolean>(false);
+  const lastMoveByRef = useRef<PlayerColor | null>(null); // To avoid self-updating from storage events
+  const [isOnlineWarningModalOpen, setIsOnlineWarningModalOpen] = useState<boolean>(false);
+
 
   const [savedGames, setSavedGames] = useState<SavedGame[]>(getSavedGames());
   
@@ -91,7 +110,13 @@ const App: React.FC = () => {
     blackPieceColor: 'black-theme-default' as PieceColorOption,
   };
   const [layoutSettings, setLayoutSettings] = useState<LayoutSettings>(initialLayoutSettings);
-  const [isLayoutModalOpen, setIsLayoutModalOpen] = useState(false); // Enabled state
+  const [isLayoutModalOpen, setIsLayoutModalOpen] = useState(false);
+  const [isChessGuideOpen, setIsChessGuideOpen] = useState(false); 
+
+  const handleToggleChessGuide = (isOpen: boolean) => {
+    setIsChessGuideOpen(isOpen);
+    if(isOpen) setIsMenuOpen(false); 
+  };
 
 
   useEffect(() => {
@@ -108,15 +133,16 @@ const App: React.FC = () => {
     setLayoutSettingsInStorage(newSettings);
   };
   
-  const resetGameToWelcomeArena = useCallback((softResetForModeChange: boolean = false, keepOnlineDetails: boolean = false) => {
-    if (onlineGameId && !keepOnlineDetails) {
-      clearOnlineGameState(onlineGameId);
-    }
+  const resetGameToWelcomeArena = useCallback((softResetForModeChange: boolean = false) => {
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    timerIntervalRef.current = null;
     
     if (!softResetForModeChange) {
         setGameMode(null);
         setIsGameSetupComplete(false);
         setViewingHallOfFame(false);
+        setIsGameSetupPending(false);
+        setIsChessGuideOpen(false); 
     }
 
     setBoardState(createInitialBoard());
@@ -131,75 +157,77 @@ const App: React.FC = () => {
     setCapturedByBlack([]);
     setGameStatus({ message: softResetForModeChange ? "Initializing new game..." : `Open menu or select a mode to start a new game.`, isGameOver: false });
     setIsComputerThinking(false);
+    setLastMove(null);
+
+    setTimeLimitPerPlayer(null);
+    setPlayer1TimeLeft(null);
+    setPlayer2TimeLeft(null);
+    setGameStartTimeStamp(null);
     
-    if (!keepOnlineDetails) {
-        setOnlineGameId(null);
-        setLocalPlayerColor(null);
-        setIsOnlineGameReady(false);
-    }
-    lastProcessedMoveByRef.current = null;
-  }, [onlineGameId]);
+    setOnlineGameIdForStorage(null);
+    setLocalPlayerColorForStorage(null);
+    setIsOnlineGameReadyForStorage(false);
+    lastMoveByRef.current = null;
+  }, []);
 
   const handleLogoClick = () => {
     resetGameToWelcomeArena();
     setIsMenuOpen(false); 
   };
 
-  const updateLocalStateFromOnline = useCallback((onlineState: OnlineGameState | null) => {
-    if (!onlineState) return;
-
-    setBoardState(onlineState.boardState);
-    setCurrentPlayer(onlineState.currentPlayer);
-    setCastlingRights(onlineState.castlingRights);
-    setEnPassantTarget(onlineState.enPassantTarget);
-    setCapturedByWhite(onlineState.capturedByWhite);
-    setCapturedByBlack(onlineState.capturedByBlack);
-    setGameStatus(onlineState.gameStatus);
-    setPlayer1Name(onlineState.player1Name);
-    if (onlineState.player2Name) setPlayer2Name(onlineState.player2Name);
-    else if (localPlayerColor === PlayerColor.WHITE) setPlayer2Name("Waiting...");
-
-    setIsOnlineGameReady(onlineState.isGameReady);
-    setKingInCheckPosition(onlineState.kingInCheckPosition);
-  }, [localPlayerColor]);
-
-  useEffect(() => {
-    if (gameMode !== 'online' || !onlineGameId) return;
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === getOnlineGameStorageKey(onlineGameId) && event.newValue) {
-        try {
-          const newState = JSON.parse(event.newValue) as OnlineGameState;
-          const isOpponentMove = newState.lastMoveBy && newState.lastMoveBy !== localPlayerColor;
-          const justJoined = !isOnlineGameReady && newState.isGameReady && newState.player2Name && localPlayerColor === PlayerColor.WHITE;
-          const opponentJoinedAndImPlayer2 = localPlayerColor === PlayerColor.BLACK && newState.isGameReady && !isOnlineGameReady;
-
-          if (isOpponentMove || justJoined || opponentJoinedAndImPlayer2) {
-             if (newState.lastMoveBy !== lastProcessedMoveByRef.current || justJoined || opponentJoinedAndImPlayer2) {
-                updateLocalStateFromOnline(newState);
-                lastProcessedMoveByRef.current = newState.lastMoveBy;
-             }
-          }
-        } catch (e) { console.error("Error parsing game state from localStorage:", e); }
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    const initialState = getOnlineGameState(onlineGameId);
-    if (initialState) {
-        updateLocalStateFromOnline(initialState);
-        lastProcessedMoveByRef.current = initialState.lastMoveBy;
+  const updateLocalStateFromStorage = useCallback((storageEventKey: string | null) => {
+    if (!onlineGameIdForStorage || !storageEventKey || storageEventKey !== getOnlineGameStorageKey(onlineGameIdForStorage)) {
+      return;
     }
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, [gameMode, onlineGameId, localPlayerColor, updateLocalStateFromOnline, isOnlineGameReady]);
 
-  const updateGameStatus = useCallback((
+    const gameStateFromStorage = getOnlineGameState(onlineGameIdForStorage);
+    if (gameStateFromStorage && gameStateFromStorage.lastMoveBy !== lastMoveByRef.current) {
+      setBoardState(gameStateFromStorage.boardState);
+      setCurrentPlayer(gameStateFromStorage.currentPlayer);
+      setCastlingRights(gameStateFromStorage.castlingRights);
+      setEnPassantTarget(gameStateFromStorage.enPassantTarget);
+      setCapturedByWhite(gameStateFromStorage.capturedByWhite);
+      setCapturedByBlack(gameStateFromStorage.capturedByBlack);
+      setGameStatus(gameStateFromStorage.gameStatus);
+      setPlayer1Name(gameStateFromStorage.player1Name);
+      setPlayer2Name(gameStateFromStorage.player2Name || (localPlayerColorForStorage === PlayerColor.WHITE ? "Waiting..." : player2Name));
+      setIsOnlineGameReadyForStorage(gameStateFromStorage.isGameReady);
+      setKingInCheckPosition(gameStateFromStorage.kingInCheckPosition);
+      setLastMove(gameStateFromStorage.lastMove || null);
+      setTimeLimitPerPlayer(gameStateFromStorage.timeLimitPerPlayer);
+      setPlayer1TimeLeft(gameStateFromStorage.player1TimeLeft);
+      setPlayer2TimeLeft(gameStateFromStorage.player2TimeLeft);
+      setGameStartTimeStamp(gameStateFromStorage.gameStartTimeStamp);
+    }
+  }, [onlineGameIdForStorage, localPlayerColorForStorage, player2Name]);
+
+  // Effect for localStorage listener
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      updateLocalStateFromStorage(event.key);
+    };
+
+    if (gameMode === 'online' && onlineGameIdForStorage) {
+      window.addEventListener('storage', handleStorageChange);
+      // Also fetch initial state in case already updated by other tab before listener attached
+      updateLocalStateFromStorage(getOnlineGameStorageKey(onlineGameIdForStorage));
+    }
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [gameMode, onlineGameIdForStorage, updateLocalStateFromStorage]);
+
+
+  const updateGameStatus = useCallback(async (
     board: BoardState, actingPlayer: PlayerColor, currentCR: CastlingRights,
-    currentEPT: Position | null, moveMessagePreamble?: string
-  ): UpdateGameStatusReturn => {
+    currentEPT: Position | null, reason: GameOverReason | null, moveMessagePreamble?: string
+  ): Promise<UpdateGameStatusReturn> => {
     const opponentColor = actingPlayer === PlayerColor.WHITE ? PlayerColor.BLACK : PlayerColor.WHITE;
     
     let actingPlayerNameForStatus = player1Name; 
     if (actingPlayer === PlayerColor.BLACK) {
-        actingPlayerNameForStatus = (gameMode === 'computer' || gameMode === 'loaded_friend') ? player2Name : player2Name;
+        actingPlayerNameForStatus = player2Name;
     }
     
     let opponentPlayerNameForStatus = player2Name; 
@@ -211,111 +239,193 @@ const App: React.FC = () => {
     let statusMsg = moveMessagePreamble || "Move successful.";
     let gameStatusResult: GameStatus;
 
-    if (isKingInCheck(board, opponentColor)) {
+    if (reason === 'timeout') {
+        gameStatusResult = {
+            message: `${opponentPlayerNameForStatus}'s time ran out! ${actingPlayerNameForStatus} wins by timeout!`,
+            isGameOver: true, winner: actingPlayer, winnerName: actingPlayerNameForStatus, reason: 'timeout'
+        };
+    } else if (isKingInCheck(board, opponentColor)) {
       newKingInCheckPos = findKingPosition(board, opponentColor);
       statusMsg = `${moveMessagePreamble ? moveMessagePreamble + ". " : ""}${opponentPlayerNameForStatus} is in Check!`;
       if (isCheckmate(board, opponentColor, currentCR, currentEPT)) {
         gameStatusResult = {
           message: `Magnificent Checkmate! ${actingPlayerNameForStatus} conquers the board!`,
-          isGameOver: true, winner: actingPlayer, winnerName: actingPlayerNameForStatus
+          isGameOver: true, winner: actingPlayer, winnerName: actingPlayerNameForStatus, reason: 'checkmate'
         };
-        if (gameMode && gameMode !== 'online' && gameMode !== 'loaded_friend') {
-            saveHallOfFameEntry(actingPlayerNameForStatus, opponentPlayerNameForStatus, gameMode);
-        }
-        setGameStatus(gameStatusResult); setKingInCheckPosition(newKingInCheckPos);
-        if (gameMode === 'online' && onlineGameId) {
-             const currentState = getOnlineGameState(onlineGameId);
-             if (currentState) setOnlineGameState(onlineGameId, {...currentState, gameStatus: gameStatusResult, kingInCheckPosition: newKingInCheckPos, lastMoveBy: actingPlayer });
-        }
-        return { gameStatusResult, newKingInCheckPos }; 
+      } else {
+         gameStatusResult = { message: statusMsg, isGameOver: false };
       }
     } else if (isStalemate(board, opponentColor, currentCR, currentEPT)) {
-        gameStatusResult = { message: "A hard-fought Stalemate! The game is a draw.", isGameOver: true };
-        setGameStatus(gameStatusResult); setKingInCheckPosition(null);
-         if (gameMode === 'online' && onlineGameId) {
-            const currentState = getOnlineGameState(onlineGameId);
-             if (currentState) setOnlineGameState(onlineGameId, {...currentState, gameStatus: gameStatusResult, kingInCheckPosition: null, lastMoveBy: actingPlayer });
-        }
-        return { gameStatusResult, newKingInCheckPos: null }; 
+        gameStatusResult = { message: "A hard-fought Stalemate! The game is a draw.", isGameOver: true, reason: 'stalemate' };
+    } else {
+        gameStatusResult = { message: statusMsg, isGameOver: false };
     }
-    gameStatusResult = { message: statusMsg, isGameOver: false };
+    
+    if (gameStatusResult.isGameOver && gameMode) { 
+        const duration = gameStartTimeStamp ? (Date.now() - gameStartTimeStamp) / 1000 : null;
+        saveHallOfFameEntry(
+            gameStatusResult.winnerName || (gameStatusResult.reason === 'stalemate' ? "Draw" : "N/A"),
+            gameStatusResult.winnerName === actingPlayerNameForStatus ? opponentPlayerNameForStatus : actingPlayerNameForStatus,
+            gameMode, // Save with the actual gameMode, including 'online' if desired
+            gameStartTimeStamp,
+            duration,
+            gameStatusResult.reason || (gameStatusResult.winner ? undefined : 'draw')
+        );
+    }
+
     setGameStatus(gameStatusResult); setKingInCheckPosition(newKingInCheckPos);
     return { gameStatusResult, newKingInCheckPos }; 
-  }, [player1Name, player2Name, gameMode, onlineGameId]); 
+  }, [player1Name, player2Name, gameMode, gameStartTimeStamp]); 
+
+
+  useEffect(() => {
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    if (!timeLimitPerPlayer || gameStatus.isGameOver || promotionSquare) {
+      return;
+    }
+
+    timerIntervalRef.current = setInterval(async () => {
+      let newTimeLeftP1: number | null = player1TimeLeft;
+      let newTimeLeftP2: number | null = player2TimeLeft;
+      let timeoutOccurred = false;
+      let timedOutPlayer: PlayerColor | null = null;
+
+      if (currentPlayer === PlayerColor.WHITE) {
+        if (player1TimeLeft !== null && player1TimeLeft <= 0) {
+          timeoutOccurred = true; timedOutPlayer = PlayerColor.WHITE; newTimeLeftP1 = 0;
+        } else if (player1TimeLeft !== null) {
+          newTimeLeftP1 = player1TimeLeft - 1;
+        }
+        setPlayer1TimeLeft(newTimeLeftP1);
+      } else {
+        if (player2TimeLeft !== null && player2TimeLeft <= 0) {
+          timeoutOccurred = true; timedOutPlayer = PlayerColor.BLACK; newTimeLeftP2 = 0;
+        } else if (player2TimeLeft !== null) {
+          newTimeLeftP2 = player2TimeLeft - 1;
+        }
+        setPlayer2TimeLeft(newTimeLeftP2);
+      }
+      
+      if (gameMode === 'online' && onlineGameIdForStorage) {
+          const currentOnlineState = getOnlineGameState(onlineGameIdForStorage);
+          if (currentOnlineState) {
+            const updates: Partial<OnlineGameState> = { 
+                player1TimeLeft: newTimeLeftP1, 
+                player2TimeLeft: newTimeLeftP2 
+            };
+            if (timeoutOccurred && timedOutPlayer) {
+                const winner = timedOutPlayer === PlayerColor.WHITE ? PlayerColor.BLACK : PlayerColor.WHITE;
+                const winnerName = winner === PlayerColor.WHITE ? currentOnlineState.player1Name : (currentOnlineState.player2Name || "Player 2");
+                const loserName = timedOutPlayer === PlayerColor.WHITE ? currentOnlineState.player1Name : (currentOnlineState.player2Name || "Player 2");
+                updates.gameStatus = {
+                    message: `${loserName}'s time ran out! ${winnerName} wins by timeout!`,
+                    isGameOver: true, winner, winnerName, reason: 'timeout'
+                };
+                if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+            }
+            setOnlineGameState(onlineGameIdForStorage, { ...currentOnlineState, ...updates, lastMoveBy: currentPlayer });
+            lastMoveByRef.current = currentPlayer;
+          }
+      } else if (timeoutOccurred && timedOutPlayer) { // Non-online game timeout
+          if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+          updateGameStatus(boardState, timedOutPlayer === PlayerColor.WHITE ? PlayerColor.BLACK : PlayerColor.WHITE, castlingRights, enPassantTarget, 'timeout');
+      }
+    }, 1000) as unknown as number; 
+
+    return () => {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    };
+  }, [currentPlayer, timeLimitPerPlayer, gameStatus.isGameOver, promotionSquare, boardState, castlingRights, enPassantTarget, updateGameStatus, gameMode, onlineGameIdForStorage, player1TimeLeft, player2TimeLeft]);
+
 
   const getCurrentPlayerRealNameForDisplay = useCallback(() => {
-    if (gameMode === 'online') {
-      return currentPlayer === PlayerColor.WHITE ? player1Name : player2Name;
-    }
     return currentPlayer === PlayerColor.WHITE ? player1Name : player2Name;
-  }, [currentPlayer, player1Name, player2Name, gameMode]);
+  }, [currentPlayer, player1Name, player2Name]);
 
   const getOpponentPlayerNameForDisplay = useCallback(() => {
-     if (gameMode === 'online') {
-        return currentPlayer === PlayerColor.WHITE ? player2Name : player1Name;
-     }
     return currentPlayer === PlayerColor.WHITE ? player2Name : player1Name;
-  }, [currentPlayer, player1Name, player2Name, gameMode]);
+  }, [currentPlayer, player1Name, player2Name]);
 
-  const applyMove = useCallback((from: Position, to: Position, promotionType?: PieceType) => {
+  const applyMove = useCallback(async (from: Position, to: Position, promotionType?: PieceType) => {
     const movingPiece = boardState[from[0]][from[1]];
     if (!movingPiece) return;
 
     const { newBoard, newCastlingRights, newEnPassantTarget, promotionSquare: promSq, capturedPiece } = 
       performMakeMove(boardState, from, to, castlingRights, enPassantTarget, promotionType);
+    
+    const newLastMove = { from, to };
+    setLastMove(newLastMove); 
 
     let moveMessagePreamble = "";
-    let newCapturedByWhite = capturedByWhite;
-    let newCapturedByBlack = capturedByBlack;
+    let newCapturedByWhite = [...capturedByWhite];
+    let newCapturedByBlack = [...capturedByBlack];
 
     if (capturedPiece) {
-      if (currentPlayer === PlayerColor.WHITE) {
-        newCapturedByBlack = [...capturedByBlack, capturedPiece]; setCapturedByBlack(newCapturedByBlack);
-      } else {
-        newCapturedByWhite = [...capturedByWhite, capturedPiece]; setCapturedByWhite(newCapturedByWhite);
+      if (currentPlayer === PlayerColor.WHITE) { 
+        newCapturedByWhite.push(capturedPiece); 
+      } else { 
+        newCapturedByBlack.push(capturedPiece); 
       }
+      setCapturedByWhite(newCapturedByWhite); 
+      setCapturedByBlack(newCapturedByBlack); 
       moveMessagePreamble = `${getCurrentPlayerRealNameForDisplay()}'s ${PIECE_SYMBOLS[movingPiece.color][movingPiece.type]} captured ${getOpponentPlayerNameForDisplay()}'s ${PIECE_SYMBOLS[capturedPiece.color][capturedPiece.type]}`;
     }
 
     setBoardState(newBoard); setCastlingRights(newCastlingRights); setEnPassantTarget(newEnPassantTarget);
-    lastProcessedMoveByRef.current = currentPlayer; 
+    
+    if (gameMode !== 'online') { // For local modes, set currentPlayer immediately if no promotion
+        lastMoveByRef.current = null; // Not used for local modes
+    }
 
     if (promSq && !promotionType) {
       setPromotionSquare(promSq);
-      if (gameMode === 'online' && onlineGameId) {
+      if (gameMode === 'online' && onlineGameIdForStorage) {
         const { gameStatusResult: tempStatus, newKingInCheckPos: kcipForOnline } = 
-            updateGameStatus(newBoard, currentPlayer, newCastlingRights, newEnPassantTarget, moveMessagePreamble);
-        setOnlineGameState(onlineGameId, {
+            await updateGameStatus(newBoard, currentPlayer, newCastlingRights, newEnPassantTarget, null, moveMessagePreamble);
+        
+        const onlineUpdate: OnlineGameState = {
             boardState: newBoard, currentPlayer, castlingRights: newCastlingRights, enPassantTarget: newEnPassantTarget,
             capturedByWhite: newCapturedByWhite, capturedByBlack: newCapturedByBlack, gameStatus: tempStatus,
-            player1Name, player2Name, isGameReady: isOnlineGameReady, lastMoveBy: currentPlayer, kingInCheckPosition: kcipForOnline
-        });
+            lastMoveBy: currentPlayer, kingInCheckPosition: kcipForOnline,
+            lastMove: newLastMove,
+            player1Name, player2Name: player2Name || null, isGameReady: isOnlineGameReadyForStorage,
+            timeLimitPerPlayer, player1TimeLeft, player2TimeLeft, gameStartTimeStamp,
+        };
+        setOnlineGameState(onlineGameIdForStorage, onlineUpdate);
+        lastMoveByRef.current = currentPlayer;
       }
     } else {
       const nextPlayer = currentPlayer === PlayerColor.WHITE ? PlayerColor.BLACK : PlayerColor.WHITE;
       const { gameStatusResult: finalGameStatus, newKingInCheckPos: finalKcip } = 
-          updateGameStatus(newBoard, currentPlayer, newCastlingRights, newEnPassantTarget, moveMessagePreamble);
+          await updateGameStatus(newBoard, currentPlayer, newCastlingRights, newEnPassantTarget, null, moveMessagePreamble);
       
-      if (gameMode === 'online' && onlineGameId) {
-         setOnlineGameState(onlineGameId, {
+      if (gameMode === 'online' && onlineGameIdForStorage) {
+         const onlineUpdate: OnlineGameState = {
           boardState: newBoard, currentPlayer: nextPlayer, castlingRights: newCastlingRights, enPassantTarget: newEnPassantTarget,
           capturedByWhite: newCapturedByWhite, capturedByBlack: newCapturedByBlack, gameStatus: finalGameStatus,
-          player1Name, player2Name, isGameReady: isOnlineGameReady, lastMoveBy: currentPlayer, kingInCheckPosition: finalKcip
-        });
+          lastMoveBy: currentPlayer, kingInCheckPosition: finalKcip,
+          lastMove: newLastMove,
+          player1Name, player2Name: player2Name || null, isGameReady: isOnlineGameReadyForStorage,
+          timeLimitPerPlayer, player1TimeLeft, player2TimeLeft, gameStartTimeStamp,
+        };
+        setOnlineGameState(onlineGameIdForStorage, onlineUpdate);
+        lastMoveByRef.current = currentPlayer;
       }
       if (!finalGameStatus.isGameOver) setCurrentPlayer(nextPlayer);
     }
     setSelectedPiecePosition(null); setPossibleMoves([]);
-  }, [boardState, currentPlayer, castlingRights, enPassantTarget, updateGameStatus, getCurrentPlayerRealNameForDisplay, getOpponentPlayerNameForDisplay, gameMode, onlineGameId, player1Name, player2Name, isOnlineGameReady, capturedByWhite, capturedByBlack]);
+  }, [boardState, currentPlayer, castlingRights, enPassantTarget, updateGameStatus, getCurrentPlayerRealNameForDisplay, getOpponentPlayerNameForDisplay, gameMode, onlineGameIdForStorage, capturedByWhite, capturedByBlack, player1Name, player2Name, isOnlineGameReadyForStorage, timeLimitPerPlayer, player1TimeLeft, player2TimeLeft, gameStartTimeStamp]);
 
   const handleSquareClick = useCallback((pos: Position) => {
     if (gameStatus.isGameOver || promotionSquare) return;
     if (gameMode === 'computer' && currentPlayer === PlayerColor.BLACK && isComputerThinking) return;
-    if (gameMode === 'online' && (!isOnlineGameReady || currentPlayer !== localPlayerColor)) return;
+    if (gameMode === 'online' && (!isOnlineGameReadyForStorage || currentPlayer !== localPlayerColorForStorage)) return;
 
     const piece = boardState[pos[0]][pos[1]];
     if (selectedPiecePosition) {
-      if (possibleMoves.some(move => move[0] === pos[0] && move[1] === pos[1])) applyMove(selectedPiecePosition, pos);
+      if (possibleMoves.some(move => move[0] === pos[0] && move[1] === pos[1])) {
+        applyMove(selectedPiecePosition, pos); 
+      }
       else {
         setSelectedPiecePosition(null); setPossibleMoves([]);
         if (piece && piece.color === currentPlayer) {
@@ -327,72 +437,114 @@ const App: React.FC = () => {
       setSelectedPiecePosition(pos);
       setPossibleMoves(getPossibleMoves(boardState, pos, currentPlayer, castlingRights, enPassantTarget));
     }
-  }, [boardState, currentPlayer, selectedPiecePosition, possibleMoves, castlingRights, enPassantTarget, gameStatus.isGameOver, promotionSquare, applyMove, gameMode, isComputerThinking, localPlayerColor, isOnlineGameReady]);
+  }, [boardState, currentPlayer, selectedPiecePosition, possibleMoves, castlingRights, enPassantTarget, gameStatus.isGameOver, promotionSquare, applyMove, gameMode, isComputerThinking, localPlayerColorForStorage, isOnlineGameReadyForStorage]);
 
-  const handlePromotion = useCallback((pieceType: PieceType) => {
+  const handlePromotion = useCallback(async (pieceType: PieceType) => {
     if (!promotionSquare) return;
     const tempBoard = createDeepBoardCopy(boardState);
     const pawnToPromote = tempBoard[promotionSquare[0]][promotionSquare[1]];
     if(pawnToPromote && pawnToPromote.type === PieceType.PAWN) {
       tempBoard[promotionSquare[0]][promotionSquare[1]] = {...pawnToPromote, type: pieceType, id: pawnToPromote.id.replace(/P\d*$/, pieceType)};
       setBoardState(tempBoard); 
+      
       const nextPlayer = currentPlayer === PlayerColor.WHITE ? PlayerColor.BLACK : PlayerColor.WHITE;
       const promoMessage = `${getCurrentPlayerRealNameForDisplay()} promoted Pawn to ${PIECE_SYMBOLS[currentPlayer][pieceType]}!`;
       
       const { gameStatusResult: finalGameStatus, newKingInCheckPos: kcipAfterPromo } = 
-          updateGameStatus(tempBoard, currentPlayer, castlingRights, enPassantTarget, promoMessage);
-      lastProcessedMoveByRef.current = currentPlayer;
+          await updateGameStatus(tempBoard, currentPlayer, castlingRights, enPassantTarget, null, promoMessage);
+      
+      if (gameMode !== 'online') {
+          lastMoveByRef.current = null;
+      }
 
-      if (gameMode === 'online' && onlineGameId) {
-        setOnlineGameState(onlineGameId, {
+      if (gameMode === 'online' && onlineGameIdForStorage) {
+        const onlineUpdate: OnlineGameState = {
             boardState: tempBoard, currentPlayer: nextPlayer, castlingRights, enPassantTarget,
             capturedByWhite, capturedByBlack, gameStatus: finalGameStatus,
-            player1Name, player2Name, isGameReady: isOnlineGameReady, lastMoveBy: currentPlayer, kingInCheckPosition: kcipAfterPromo
-        });
+            lastMoveBy: currentPlayer, kingInCheckPosition: kcipAfterPromo,
+            lastMove: lastMove,
+            player1Name, player2Name: player2Name || null, isGameReady: isOnlineGameReadyForStorage,
+            timeLimitPerPlayer, player1TimeLeft, player2TimeLeft, gameStartTimeStamp,
+        };
+        setOnlineGameState(onlineGameIdForStorage, onlineUpdate);
+        lastMoveByRef.current = currentPlayer;
       }
       if (!finalGameStatus.isGameOver) setCurrentPlayer(nextPlayer);
     }
     setPromotionSquare(null); setSelectedPiecePosition(null); setPossibleMoves([]);
-  }, [boardState, promotionSquare, currentPlayer, castlingRights, enPassantTarget, updateGameStatus, getCurrentPlayerRealNameForDisplay, gameMode, onlineGameId, player1Name, player2Name, isOnlineGameReady, capturedByWhite, capturedByBlack]);
+  }, [boardState, promotionSquare, currentPlayer, castlingRights, enPassantTarget, updateGameStatus, getCurrentPlayerRealNameForDisplay, gameMode, onlineGameIdForStorage, capturedByWhite, capturedByBlack, lastMove, player1Name, player2Name, isOnlineGameReadyForStorage, timeLimitPerPlayer, player1TimeLeft, player2TimeLeft, gameStartTimeStamp]);
 
   useEffect(() => {
     if (gameMode === 'computer' && currentPlayer === PlayerColor.BLACK && !gameStatus.isGameOver && !promotionSquare && !isComputerThinking) {
       setIsComputerThinking(true);
-      getComputerMove(boardState, PlayerColor.BLACK, castlingRights, enPassantTarget)
-        .then((aiMove: AIMove | null) => {
-          if (aiMove) {
-            const pieceAtFrom = boardState[aiMove.from[0]][aiMove.from[1]];
-            if (pieceAtFrom && pieceAtFrom.color === PlayerColor.BLACK) {
-                const AIsPossibleMoves = getPossibleMoves(boardState, aiMove.from, PlayerColor.BLACK, castlingRights, enPassantTarget);
-                if (AIsPossibleMoves.some(m => m[0] === aiMove.to[0] && m[1] === aiMove.to[1])) applyMove(aiMove.from, aiMove.to, aiMove.promotion);
-                else {
-                    setGameStatus(prev => ({...prev, message: "AI error. Your turn."})); setCurrentPlayer(PlayerColor.WHITE); 
-                }
-            } else {
-                 setGameStatus(prev => ({...prev, message: "AI error. Your turn."})); setCurrentPlayer(PlayerColor.WHITE); 
+      const aiMoveDelay = timeLimitPerPlayer ? Math.max(1000, Math.random() * 2000 + 1000) : 500; 
+      setTimeout(() => {
+        getComputerMove(boardState, PlayerColor.BLACK, castlingRights, enPassantTarget)
+          .then((aiMove: AIMove | null) => {
+            if (aiMove && !gameStatus.isGameOver) { 
+              const pieceAtFrom = boardState[aiMove.from[0]][aiMove.from[1]];
+              if (pieceAtFrom && pieceAtFrom.color === PlayerColor.BLACK) {
+                  const AIsPossibleMoves = getPossibleMoves(boardState, aiMove.from, PlayerColor.BLACK, castlingRights, enPassantTarget);
+                  if (AIsPossibleMoves.some(m => m[0] === aiMove.to[0] && m[1] === aiMove.to[1])) {
+                     applyMove(aiMove.from, aiMove.to, aiMove.promotion);
+                  }
+                  else {
+                      setGameStatus(prev => ({...prev, message: "AI error: Invalid move. Your turn."})); setCurrentPlayer(PlayerColor.WHITE); 
+                      setLastMove(null); 
+                  }
+              } else {
+                   setGameStatus(prev => ({...prev, message: "AI error: No piece to move. Your turn."})); setCurrentPlayer(PlayerColor.WHITE); 
+                   setLastMove(null); 
+              }
+            } else if (!gameStatus.isGameOver) { 
+               setGameStatus(prev => ({...prev, message: "AI could not move. Your turn."})); setCurrentPlayer(PlayerColor.WHITE); 
+               setLastMove(null);
             }
-          } else {
-             setGameStatus(prev => ({...prev, message: "AI could not move. Your turn."})); setCurrentPlayer(PlayerColor.WHITE); 
-          }
-        })
-        .catch(error => {
-          setGameStatus(prev => ({...prev, message: "Error with AI. Your turn."})); setCurrentPlayer(PlayerColor.WHITE); 
-        })
-        .finally(() => setIsComputerThinking(false));
+          })
+          .catch(error => {
+            if (!gameStatus.isGameOver) {
+              setGameStatus(prev => ({...prev, message: "Error with AI. Your turn."})); setCurrentPlayer(PlayerColor.WHITE); 
+              setLastMove(null);
+            }
+          })
+          .finally(() => setIsComputerThinking(false));
+      }, aiMoveDelay);
     }
-  }, [currentPlayer, gameMode, gameStatus.isGameOver, promotionSquare, boardState, castlingRights, enPassantTarget, applyMove, isComputerThinking]);
+  }, [currentPlayer, gameMode, gameStatus.isGameOver, promotionSquare, boardState, castlingRights, enPassantTarget, applyMove, isComputerThinking, timeLimitPerPlayer]);
 
   const handleSelectModeFromWelcomeArena = (mode: GameMode | 'hof') => {
     resetGameToWelcomeArena(true); 
     if (mode === 'hof') {
         setViewingHallOfFame(true);
+        setIsGameSetupPending(false);
     } else {
-        setGameMode(mode);
-        setIsGameSetupComplete(false); 
+        if (mode === 'online') {
+            setIsOnlineWarningModalOpen(true);
+            // Game setup for 'online' will proceed from the warning modal's confirmation
+        } else {
+            setGameMode(mode as GameMode); 
+            setIsGameSetupPending(true); 
+            setIsTimeModeSelectionOpen(true); 
+        }
     }
     setIsMenuOpen(false);
   };
   
+  const handleProceedFromOnlineWarning = () => {
+    setIsOnlineWarningModalOpen(false);
+    setGameMode('online');
+    setIsGameSetupPending(true);
+    setIsTimeModeSelectionOpen(true);
+  };
+
+  const handleTimeModeSelected = (selectedTime: number | null) => {
+    setTimeLimitPerPlayer(selectedTime);
+    setIsTimeModeSelectionOpen(false);
+    // If gameMode is not 'online', isGameSetupPending should remain true to proceed to PlayerNameEntry
+    // If it *is* 'online', isGameSetupPending also remains true to proceed to OnlineGameSetup.
+    // This seems correct as OnlineGameSetup or PlayerNameEntry are the next steps.
+  };
+
   const handlePlayerNameSetup = (p1Name: string, p2NameProvided?: string) => { 
     const finalP1Name = p1Name.trim() || "Player 1";
     let finalP2Name = "Player 2";
@@ -402,29 +554,51 @@ const App: React.FC = () => {
     } else if (gameMode === 'computer') {
       finalP2Name = AI_PLAYER_NAME; setPlayer2Name(AI_PLAYER_NAME);
     }
-    setIsGameSetupComplete(true); setViewingHallOfFame(false);
+    
+    setIsGameSetupComplete(true); 
+    setIsGameSetupPending(false);
+    setViewingHallOfFame(false);
     setGameStatus({ message: `Game started. Good luck, ${finalP1Name} and ${finalP2Name}!`, isGameOver: false });
+    setLastMove(null);
+    if (timeLimitPerPlayer) {
+        setPlayer1TimeLeft(timeLimitPerPlayer);
+        setPlayer2TimeLeft(timeLimitPerPlayer);
+        setGameStartTimeStamp(Date.now());
+    }
   };
 
-  const handleOnlineGameSetupComplete = (gameId: string, isHost: boolean, localPName: string, initialOnlineState: OnlineGameState) => {
-    resetGameToWelcomeArena(true, true); 
-    setOnlineGameId(gameId); setLocalPlayerColor(isHost ? PlayerColor.WHITE : PlayerColor.BLACK);
-    updateLocalStateFromOnline(initialOnlineState); 
-    if (isHost) {
-        setPlayer1Name(localPName); setPlayer2Name(initialOnlineState.player2Name || "Waiting...");
-    } else {
-        setPlayer1Name(initialOnlineState.player1Name); setPlayer2Name(localPName); 
+  const handleOnlineGameSetupComplete = (gameId: string, isHost: boolean, localPName: string, initialOnlineStateFromSetup: OnlineGameState) => {
+    resetGameToWelcomeArena(true); 
+    setOnlineGameIdForStorage(gameId); 
+    setLocalPlayerColorForStorage(isHost ? PlayerColor.WHITE : PlayerColor.BLACK);
+    
+    setBoardState(initialOnlineStateFromSetup.boardState);
+    setCurrentPlayer(initialOnlineStateFromSetup.currentPlayer);
+    setCastlingRights(initialOnlineStateFromSetup.castlingRights);
+    setEnPassantTarget(initialOnlineStateFromSetup.enPassantTarget);
+    setCapturedByWhite(initialOnlineStateFromSetup.capturedByWhite);
+    setCapturedByBlack(initialOnlineStateFromSetup.capturedByBlack);
+    setGameStatus(initialOnlineStateFromSetup.gameStatus);
+    setPlayer1Name(initialOnlineStateFromSetup.player1Name);
+    setPlayer2Name(initialOnlineStateFromSetup.player2Name || (isHost ? "Waiting..." : localPName));
+    setIsOnlineGameReadyForStorage(initialOnlineStateFromSetup.isGameReady);
+    setKingInCheckPosition(initialOnlineStateFromSetup.kingInCheckPosition);
+    setLastMove(initialOnlineStateFromSetup.lastMove || null);
+    setTimeLimitPerPlayer(initialOnlineStateFromSetup.timeLimitPerPlayer);
+    setPlayer1TimeLeft(initialOnlineStateFromSetup.player1TimeLeft);
+    setPlayer2TimeLeft(initialOnlineStateFromSetup.player2TimeLeft);
+    setGameStartTimeStamp(initialOnlineStateFromSetup.gameStartTimeStamp);
+    
+    if (!isHost) { // If joining, set own name explicitly if not already set by host somehow
+        setPlayer2Name(localPName);
     }
-    setGameMode('online'); setIsGameSetupComplete(true); setViewingHallOfFame(false);
-    setIsOnlineGameReady(initialOnlineState.isGameReady); 
-    lastProcessedMoveByRef.current = initialOnlineState.lastMoveBy;
-    if (initialOnlineState.isGameReady) {
-        setGameStatus({message: `Game ready. ${initialOnlineState.currentPlayer === PlayerColor.WHITE ? initialOnlineState.player1Name : (initialOnlineState.player2Name || 'Player 2')}'s turn.`, isGameOver: false});
-    } else if (isHost) {
-        setGameStatus({message: `Waiting for opponent to join Game ID: ${gameId}`, isGameOver: false});
-    } else {
-        setGameStatus({message: `Joining Game ID: ${gameId}...`, isGameOver: false});
-    }
+    lastMoveByRef.current = initialOnlineStateFromSetup.lastMoveBy;
+
+
+    setGameMode('online'); 
+    setIsGameSetupComplete(true); 
+    setIsGameSetupPending(false);
+    setViewingHallOfFame(false);
     setIsMenuOpen(false); 
   };
 
@@ -432,16 +606,17 @@ const App: React.FC = () => {
     if (!gameMode || !isGameSetupComplete || gameStatus.isGameOver) return;
     let gameModeToSave: 'friend' | 'computer' | 'loaded_friend' = 'friend';
     if (gameMode === 'computer') gameModeToSave = 'computer';
-    else if (gameMode === 'online') gameModeToSave = 'loaded_friend';
+    else if (gameMode === 'online') gameModeToSave = 'loaded_friend'; 
     else if (gameMode === 'loaded_friend') gameModeToSave = 'loaded_friend';
     else gameModeToSave = 'friend';
 
     const gameToSave: SavedGame = {
       id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      name: `vs ${gameMode === 'computer' ? AI_PLAYER_NAME : (gameMode === 'online' || gameMode === 'loaded_friend' ? 'Online Opponent (Local)' : player2Name)}`,
+      name: `vs ${gameMode === 'computer' ? AI_PLAYER_NAME : (gameMode === 'online' || gameMode === 'loaded_friend' ? (localPlayerColorForStorage === PlayerColor.WHITE ? player2Name : player1Name) : player2Name)} ${timeLimitPerPlayer ? `(${timeLimitPerPlayer/60} min)` : ''}`,
       timestamp: Date.now(), gameMode: gameModeToSave, boardState, currentPlayer, player1Name,
       player2Name, castlingRights, enPassantTarget, capturedByWhite, capturedByBlack, gameStatus, kingInCheckPosition,
-      originalLocalPlayerColor: gameMode === 'online' ? localPlayerColor : null,
+      originalLocalPlayerColor: gameMode === 'online' ? localPlayerColorForStorage : null,
+      timeLimitPerPlayer, player1TimeLeft, player2TimeLeft, gameStartTimeStamp, lastMove
     };
     saveGameToStorage(gameToSave);
     setSavedGames(getSavedGames()); 
@@ -450,6 +625,7 @@ const App: React.FC = () => {
   const handleLoadSavedGame = (gameId: string) => {
     const gameToLoad = savedGames.find(g => g.id === gameId);
     if (!gameToLoad) return;
+    
     resetGameToWelcomeArena(); 
     setGameMode(gameToLoad.gameMode);
     setPlayer1Name(gameToLoad.player1Name); setPlayer2Name(gameToLoad.player2Name);
@@ -457,10 +633,21 @@ const App: React.FC = () => {
     setCastlingRights(gameToLoad.castlingRights); setEnPassantTarget(gameToLoad.enPassantTarget);
     setCapturedByWhite(gameToLoad.capturedByWhite); setCapturedByBlack(gameToLoad.capturedByBlack);
     setGameStatus(gameToLoad.gameStatus); setKingInCheckPosition(gameToLoad.kingInCheckPosition);
-    if (gameToLoad.gameMode === 'loaded_friend') setLocalPlayerColor(PlayerColor.WHITE); 
-    else setLocalPlayerColor(null);
-    setIsOnlineGameReady(false); setOnlineGameId(null);
-    setIsGameSetupComplete(true); setIsMenuOpen(false);
+    setLastMove(gameToLoad.lastMove || null);
+    
+    setTimeLimitPerPlayer(gameToLoad.timeLimitPerPlayer);
+    setPlayer1TimeLeft(gameToLoad.player1TimeLeft);
+    setPlayer2TimeLeft(gameToLoad.player2TimeLeft);
+    setGameStartTimeStamp(gameToLoad.gameStartTimeStamp);
+
+    // Ensure online-specific states are reset when loading a local game
+    setOnlineGameIdForStorage(null);
+    setLocalPlayerColorForStorage(null);
+    setIsOnlineGameReadyForStorage(false);
+
+    setIsGameSetupComplete(true); 
+    setIsGameSetupPending(false);
+    setIsMenuOpen(false);
   };
 
   const handleDeleteSavedGame = (gameId: string) => {
@@ -480,9 +667,9 @@ const App: React.FC = () => {
     setIsMenuOpen(true);
   };
 
-  const handleOpenLayoutCustomization = () => { // Handler for MenuModal
+  const handleOpenLayoutCustomization = () => {
     setIsLayoutModalOpen(true);
-    setIsMenuOpen(false); // Close main menu when layout modal opens
+    setIsMenuOpen(false); 
   };
 
 
@@ -490,9 +677,28 @@ const App: React.FC = () => {
     return <HallOfFame onBackToMenu={() => { setViewingHallOfFame(false); resetGameToWelcomeArena(); }} theme={theme} />;
   }
 
-  if (!isGameSetupComplete && gameMode) { 
-    if (gameMode === 'online') {
-        return <OnlineGameSetup onGameSetupComplete={handleOnlineGameSetupComplete} onBackToMenu={() => resetGameToWelcomeArena()} theme={theme} />;
+  if (isChessGuideOpen) {
+    return <ChessGuide isOpen={isChessGuideOpen} onClose={() => handleToggleChessGuide(false)} theme={theme} />;
+  }
+
+  if (isOnlineWarningModalOpen) {
+    return (
+      <OnlineWarningModal 
+        isOpen={isOnlineWarningModalOpen}
+        onProceed={handleProceedFromOnlineWarning}
+        onCancel={() => { setIsOnlineWarningModalOpen(false); resetGameToWelcomeArena(); }}
+        theme={theme}
+      />
+    );
+  }
+
+  if (isTimeModeSelectionOpen && gameMode) {
+    return <TimeModeSelectionModal isOpen={isTimeModeSelectionOpen} onClose={handleTimeModeSelected} theme={theme} />;
+  }
+  
+  if (isGameSetupPending && !isTimeModeSelectionOpen && gameMode) {
+     if (gameMode === 'online') {
+        return <OnlineGameSetup onGameSetupComplete={handleOnlineGameSetupComplete} onBackToMenu={() => resetGameToWelcomeArena()} theme={theme} initialTimeLimit={timeLimitPerPlayer} />;
     } else if (gameMode === 'friend' || gameMode === 'computer') {
         return <PlayerNameEntry gameMode={gameMode} onSetupComplete={handlePlayerNameSetup} onBackToMenu={() => resetGameToWelcomeArena()} theme={theme} />;
     }
@@ -578,9 +784,10 @@ const App: React.FC = () => {
         onLoadSavedGame={handleLoadSavedGame}
         onDeleteSavedGame={handleDeleteSavedGame}
         onClearAllSavedGames={handleClearAllSavedGames}
-        onOpenLayoutCustomization={handleOpenLayoutCustomization} // Enabled prop
+        onOpenLayoutCustomization={handleOpenLayoutCustomization}
+        onOpenChessGuide={() => handleToggleChessGuide(true)}
       />
-      {isLayoutModalOpen && ( // Enabled rendering
+      {isLayoutModalOpen && (
         <LayoutCustomizationModal
           isOpen={isLayoutModalOpen}
           currentSettings={layoutSettings}
@@ -621,15 +828,15 @@ const App: React.FC = () => {
                 </svg>
             </button>
         </div>
-        {gameMode === 'online' && onlineGameId && isGameSetupComplete && (
+        {gameMode === 'online' && onlineGameIdForStorage && isGameSetupComplete && (
             <div className={`mt-2.5 text-xs sm:text-sm ${onlineIdText} font-medium tracking-wide ${onlineIdContainerClass} px-4 py-2 rounded-lg inline-block shadow-lg`}>
-                Online Game ID: <span className={onlineIdValueText}>{onlineGameId}</span> 
-                {localPlayerColor ? <span className={onlineIdSubText}> (You are {localPlayerColor})</span> : ''}
+                Online Game ID: <span className={onlineIdValueText}>{onlineGameIdForStorage}</span> 
+                {localPlayerColorForStorage ? <span className={onlineIdSubText}> (You are {localPlayerColorForStorage})</span> : ''}
             </div>
         )}
       </header>
 
-      {(!gameMode || !isGameSetupComplete) && !viewingHallOfFame && (
+      {(!gameMode || (!isGameSetupComplete && !isGameSetupPending)) && !viewingHallOfFame && !isChessGuideOpen && !isOnlineWarningModalOpen && (
          <div className="flex-grow flex flex-col items-center justify-center text-center p-4 w-full">
             <div className={`p-6 sm:p-8 md:p-10 rounded-2xl shadow-2xl w-full max-w-xl ${welcomePanelClasses}`}>
                 <div className={`text-5xl sm:text-6xl mb-4 ${welcomeIconColor} opacity-100`}>
@@ -672,48 +879,43 @@ const App: React.FC = () => {
                 playerName={player2Name}
                 playerColor={PlayerColor.BLACK}
                 capturedPieces={capturedByBlack}
-                isCurrentTurn={currentPlayer === PlayerColor.BLACK && (gameMode !== 'online' || (isOnlineGameReady && localPlayerColor === PlayerColor.BLACK))}
+                isCurrentTurn={currentPlayer === PlayerColor.BLACK}
                 theme={theme}
                 layoutSettings={layoutSettings}
+                timeLeft={player2TimeLeft}
+                timeLimit={timeLimitPerPlayer}
             />
-
-            <div className="flex flex-col md:flex-row items-center md:items-start justify-center gap-3 sm:gap-4 w-full max-w-max mx-auto">
-            <Board
-                boardState={boardState}
-                onSquareClick={handleSquareClick}
-                selectedPiecePosition={selectedPiecePosition}
-                possibleMoves={possibleMoves}
-                currentPlayer={currentPlayer}
-                kingInCheckPosition={kingInCheckPosition}
-                theme={theme}
-                layoutSettings={layoutSettings}
-            />
-            <div className="w-full md:w-auto flex justify-center md:justify-start md:items-start md:pl-0 lg:pl-4 md:pt-4 lg:pt-8 order-first md:order-last">
-                <TurnIndicator
-                playerName={turnIndicatorPlayerName()}
-                playerColor={currentPlayer}
-                isComputerThinking={isComputerThinking}
-                gameMode={gameMode}
-                theme={theme}
+            <div className="flex flex-row items-center justify-center w-full max-w-max mx-auto gap-1 sm:gap-2 md:gap-3">
+                <Board
+                    boardState={boardState}
+                    onSquareClick={handleSquareClick}
+                    selectedPiecePosition={selectedPiecePosition}
+                    possibleMoves={possibleMoves}
+                    currentPlayer={currentPlayer}
+                    kingInCheckPosition={kingInCheckPosition}
+                    theme={theme}
+                    layoutSettings={layoutSettings}
+                    lastMove={lastMove}
                 />
             </div>
-            </div>
-
+            
             <PlayerDisplayPanel
                 playerName={player1Name}
                 playerColor={PlayerColor.WHITE}
                 capturedPieces={capturedByWhite}
-                isCurrentTurn={currentPlayer === PlayerColor.WHITE && (gameMode !== 'online' || (isOnlineGameReady && localPlayerColor === PlayerColor.WHITE))}
+                isCurrentTurn={currentPlayer === PlayerColor.WHITE}
                 theme={theme}
                 layoutSettings={layoutSettings}
+                timeLeft={player1TimeLeft}
+                timeLimit={timeLimitPerPlayer}
             />
             
-            {gameMode === 'online' && !isOnlineGameReady && onlineGameId && localPlayerColor === PlayerColor.WHITE && (
+            {gameMode === 'online' && !isOnlineGameReadyForStorage && onlineGameIdForStorage && localPlayerColorForStorage === PlayerColor.WHITE && (
                 <div className={`p-4 ${waitingMsgContainerClass} rounded-lg shadow-xl text-center font-medium max-w-md w-full`}>
-                    Waiting for Player 2 to join with Game ID: <strong className={waitingIdValueText}>{onlineGameId}</strong>
+                    Waiting for Player 2 to join with Game ID: <strong className={waitingIdValueText}>{onlineGameIdForStorage}</strong>
                 </div>
             )}
-            {gameMode === 'online' && !isOnlineGameReady && onlineGameId && localPlayerColor === PlayerColor.BLACK && (
+            {gameMode === 'online' && !isOnlineGameReadyForStorage && onlineGameIdForStorage && localPlayerColorForStorage === PlayerColor.BLACK && (
                 <div className={`p-4 ${joiningMsgContainerClass} rounded-lg shadow-xl text-center font-medium max-w-md w-full`}>
                     Attempting to join game... Ensure host is waiting.
                 </div>

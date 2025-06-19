@@ -52,19 +52,19 @@ const GameInfo: React.FC<GameInfoProps> = ({ currentPlayerName, gameStatus, onRe
 
 
   return (
-    <div className={`p-4 sm:p-5 shadow-xl w-full max-w-md text-center rounded-xl ${panelBgClass}`}>
-      <h2 className={`text-xl sm:text-2xl font-bold mb-2 ${titleColorClass}`} style={{textShadow: titleShadowClass}}>
+    <div className={`p-2 sm:p-3 shadow-xl w-full max-w-md !mt-5 text-center rounded-xl ${panelBgClass}`}>
+      <h2 className={`text-lg sm:text-xl font-bold mb-1.5 ${titleColorClass}`} style={{textShadow: titleShadowClass}}>
         {infoTitle}
       </h2>
       <p 
-        className={`text-sm sm:text-base mb-3 min-h-[2.5rem] flex items-center justify-center font-medium px-2 ${messageColorClass}`}
+        className={`text-xs sm:text-sm mb-2 min-h-[2rem] flex items-center justify-center font-medium px-2 ${messageColorClass}`}
         aria-live="polite"
       >
         {gameStatus.message}
       </p>
       <button
         onClick={onReset} 
-        className={`px-6 py-3 font-semibold rounded-lg text-md transition-all duration-200 ease-in-out transform hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-opacity-75 ${resetBtnClass}`}
+        className={`px-4 py-2 font-semibold rounded-lg text-sm transition-all duration-200 ease-in-out transform hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-opacity-75 ${resetBtnClass}`}
       >
         Open Game Menu 
       </button>

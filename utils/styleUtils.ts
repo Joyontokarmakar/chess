@@ -12,6 +12,7 @@ export interface BoardStyleClasses {
   selectedSquareRing: string;
   possibleMoveDot: string;
   possibleMoveRing: string;
+  lastMoveSquareOverlay: string; // Added for last move highlight
 }
 
 export interface PieceStyleClasses {

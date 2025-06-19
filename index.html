@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Classic Chess Championship</title>
+  <title>React Chess Championship | Play Free Chess Online with AI</title>
+  <meta name="description" content="Play chess online for free! Challenge friends, test your skills against a smart AI opponent, or enjoy local two-player games. Features customizable themes, game saving, and a Hall of Fame. Learn chess rules with our in-game guide. Built with React.">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     :root {
@@ -69,8 +71,9 @@
         text-shadow: 0 0 0.25em var(--piece-hover-shadow-dark-text), 0 0 0.5em var(--piece-hover-shadow-dark-color), 0.03em 0.03em 0.08em rgba(0,0,0,0.5);
     }
 
+    /* Reduced font size for captured pieces */
     .captured-piece .chess-piece {
-        font-size: 1.5rem !important; 
+        font-size: 0.9rem !important; 
         cursor: default;
     }
     body.theme-light .captured-piece .chess-piece {
@@ -83,8 +86,9 @@
     body.theme-light .captured-piece .chess-piece:hover { text-shadow: 0 0 0.03em rgba(0,0,0,0.15), 0.01em 0.01em 0.02em rgba(0,0,0,0.3) !important; }
     body.theme-dark .captured-piece .chess-piece:hover { text-shadow: 0 0 0.05em rgba(255,255,255,0.15), 0.02em 0.02em 0.04em rgba(0,0,0,0.4) !important; }
     
+    /* Reduced font size for player avatar */
     .player-avatar .chess-piece {
-        font-size: 2.8rem !important; 
+        font-size: 1.8rem !important; 
     }
     body.theme-light .player-avatar .chess-piece {
         text-shadow: 0 0 0.1em rgba(0,0,0,0.15), 0.03em 0.03em 0.07em rgba(0,0,0,0.3) !important;
@@ -95,13 +99,17 @@
 
     @media (min-width: 640px) { /* sm breakpoint */
       .chess-piece { font-size: 2.6rem; }
-      .captured-piece .chess-piece { font-size: 1.8rem !important; }
-      .player-avatar .chess-piece { font-size: 3.2rem !important; }
+      /* Reduced font size for captured pieces - sm */
+      .captured-piece .chess-piece { font-size: 1.0rem !important; }
+      /* Reduced font size for player avatar - sm */
+      .player-avatar .chess-piece { font-size: 2.0rem !important; }
     }
     @media (min-width: 768px) { /* md breakpoint */
       .chess-piece { font-size: 3rem; }
-      .captured-piece .chess-piece { font-size: 2rem !important; }
-      .player-avatar .chess-piece { font-size: 3.8rem !important; }
+      /* Reduced font size for captured pieces - md */
+      .captured-piece .chess-piece { font-size: 1.1rem !important; }
+      /* Reduced font size for player avatar - md */
+      .player-avatar .chess-piece { font-size: 2.2rem !important; }
     }
     
     .king-check-pulse { animation: pulse-glow-border 1.5s infinite; }
@@ -160,6 +168,15 @@
       color: #A78BFA; /* violet-400 for moon */
     }
 
+    /* For Chess Guide piece examples */
+    .guide-piece-example {
+        font-size: 1.75rem !important; /* Larger than normal text, but not as big as board pieces */
+        /* You can add text-shadow here if desired, similar to .chess-piece but perhaps more subtle */
+    }
+    @media (min-width: 640px) { /* sm breakpoint */
+      .guide-piece-example { font-size: 1.85rem !important; }
+    }
+
   </style>
 <script type="importmap">
 {
@@ -167,7 +184,8 @@
     "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
     "react/": "https://esm.sh/react@^19.1.0/",
     "react": "https://esm.sh/react@^19.1.0",
-    "@google/genai": "https://esm.sh/@google/genai"
+    "@google/genai": "https://esm.sh/@google/genai",
+    "firebase/": "https://esm.sh/firebase@^11.9.1/"
   }
 }
 </script>

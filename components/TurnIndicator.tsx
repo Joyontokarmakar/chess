@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { PlayerColor, GameMode, Theme } from '../types'; // Added Theme
+import { PlayerColor, GameMode, Theme } from '../types'; 
 import { AI_PLAYER_NAME } from '../constants';
 
 interface TurnIndicatorProps {
@@ -7,10 +8,18 @@ interface TurnIndicatorProps {
   playerColor: PlayerColor;
   isComputerThinking?: boolean;
   gameMode?: GameMode;
-  theme: Theme; // Added theme prop
+  theme: Theme;
+  orientation: 'vertical-left' | 'vertical-right'; // New prop for orientation
 }
 
-const TurnIndicator: React.FC<TurnIndicatorProps> = ({ playerName, playerColor, isComputerThinking, gameMode, theme }) => {
+const TurnIndicator: React.FC<TurnIndicatorProps> = ({ 
+    playerName, 
+    playerColor, 
+    isComputerThinking, 
+    gameMode, 
+    theme,
+    orientation 
+}) => {
   let displayText: string;
   const isAIActive = gameMode === 'computer' && playerColor === PlayerColor.BLACK;
 
@@ -24,6 +33,11 @@ const TurnIndicator: React.FC<TurnIndicatorProps> = ({ playerName, playerColor, 
   let borderColorClass = '';
   let bgColorClass = '';
   let textShadowClass = '';
+  let orientationTransformClass = '';
+
+  // Define base size (width becomes length along board, height becomes thickness)
+  // Padding adjusted for a more compact vertical look
+  const sizeClasses = 'w-[150px] sm:w-[180px] md:w-[200px] h-9 sm:h-10 md:h-11 p-1.5 sm:p-2';
 
   if (theme === 'dark') {
     textColorClass = playerColor === PlayerColor.WHITE ? 'text-rose-400' : 'text-cyan-400';
@@ -37,14 +51,25 @@ const TurnIndicator: React.FC<TurnIndicatorProps> = ({ playerName, playerColor, 
     textShadowClass = '0 0 3px rgba(0,0,0,0.1)';
   }
 
+  if (orientation === 'vertical-left') {
+    orientationTransformClass = 'transform -rotate-90 origin-center';
+  } else if (orientation === 'vertical-right') {
+    orientationTransformClass = 'transform rotate-90 origin-center';
+  }
 
   return (
     <div
-      className={`p-3.5 md:p-4 rounded-xl shadow-xl border-2 ${borderColorClass} ${bgColorClass} backdrop-blur-xl w-full sm:w-auto sm:min-w-[220px] text-center transition-all duration-200`}
+      className={`rounded-lg shadow-md border-2 ${borderColorClass} ${bgColorClass} backdrop-blur-sm 
+                  flex items-center justify-center 
+                  ${sizeClasses} ${orientationTransformClass} 
+                  transition-all duration-200`}
       role="status"
       aria-live="polite"
     >
-      <p className={`text-base sm:text-lg font-bold ${textColorClass}`} style={{textShadow: textShadowClass}}>
+      <p 
+        className={`text-xs sm:text-sm font-bold ${textColorClass} ${isAIActive && isComputerThinking ? '' : 'whitespace-nowrap'}`} 
+        style={{textShadow: textShadowClass}}
+      >
         {displayText}
       </p>
     </div>

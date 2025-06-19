@@ -1,66 +1,69 @@
-# Classic Chess Game
 
-Hello! This is a fun chess game you can play. It has many cool things to make your game awesome. You can play with friends, try to beat the computer, or pretend to play online. You can also change how the game looks!
+# Classic Chess Championship - Free Online Chess Game
 
-## How to Play (What You Can Do)
+Hello! This is a fun and interactive **free chess game** you can play right in your browser. It's packed with cool features to make your chess experience awesome. You can **play chess with friends** locally, try to beat the challenging **chess AI** opponent, or simulate an **online chess** match. Plus, you can customize how the game looks to suit your style! This **React chess application** is designed for both beginners and seasoned players.
 
-*   **Normal Chess Rules:** You play chess like you normally would.
-    *   If your little pawn piece reaches the other side, it can become a Queen or other strong piece!
-    *   Your King can do a special move called "castling" to get safe.
-    *   There's a special pawn move called "en passant."
-*   **Correct Moves Only:** The game makes sure you only make moves that are allowed in chess.
-*   **How the Game Ends:** The game knows when it's over:
-    *   **Checkmate:** When one player traps the other player's King, they win!
-    *   **Stalemate:** Sometimes, no one can win, and it's a tie (draw).
-*   **King in Danger!:** If your King is in trouble (in "check"), the game will show you.
+## How to Play (Features & Chess Strategy)
 
-## Ways to Play
+Master the game with standard chess rules and unique features:
 
-*   **Play with a Friend (On One Computer):** Two people can play against each other using the same computer.
-*   **Play Against the Computer (AI):** You can play a game against the computer.
-    *   It uses a smart brain (Gemini AI) to play well if you have a special key for it.
-    *   If not, it still plays, but with simpler moves.
-*   **Play Online (Pretend):**
-    *   You can make a special Game ID to share with a friend.
-    *   Your friend can use this ID to join your game.
-    *   *Good to know: This isn't real internet play. It uses your computer's memory. So, two people can play on the same computer (maybe in different web browser windows) or on computers close by.*
+*   **Standard Chess Rules:** All fundamental rules are implemented.
+    *   **Pawn Promotion:** If your pawn reaches the opponent's back rank, it can be promoted to a Queen, Rook, Bishop, or Knight – a key element of **chess strategy**.
+    *   **Castling:** Perform the special King and Rook move for King safety.
+    *   **En Passant:** Execute this special pawn capture.
+*   **Legal Move Validation:** The game ensures all moves are valid according to chess rules.
+*   **Game End Conditions:** The game accurately detects:
+    *   **Checkmate:** Trap the opponent's King to win!
+    *   **Stalemate:** If no legal moves can be made and the King is not in check, the game is a draw.
+*   **King in Check Indication:** Visual alerts if your King is under attack. **Learn chess rules** about check and checkmate as you play.
 
-## Make It Look Your Way!
+## Ways to Play Chess
 
-*   **Player Names:** You can type in names for Player 1 and Player 2.
-*   **Light or Dark Look:** You can change the whole game to look light or dark.
-*   **Change How Things Look:**
-    *   **Board Style:** Pick different looks for the chessboard, like woody, blue, or green.
-    *   **Piece Colors:** Choose different colors for the white and black chess pieces, like red, yellow, or blue.
-    *   There's a special pop-up window where you can see and pick these looks.
+*   **Play with a Friend (Local Multiplayer):** Two players can compete on the same computer.
+*   **Play Against the Computer (Chess AI):** Challenge our intelligent AI opponent.
+    *   Powered by Gemini AI for strong gameplay (requires API key).
+    *   A basic offline AI is available if the Gemini API key is not configured.
+*   **Play Online (Simulated):**
+    *   Create a unique Game ID to share with a friend for a simulated online match.
+    *   *Note: This feature uses localStorage for local network or same-device play, not true internet multiplayer.*
 
-## Using the Game (How It Feels)
+## Customize Your Chess Experience
 
-*   **Click to Move:** Click on a chess piece, then click where you want it to go.
-*   **See Where You Can Go:** When you pick a piece, the game shows you all the places it can move.
-*   **See Taken Pieces:** It clearly shows which pieces each player has taken from the other.
-*   **Whose Turn?:** It tells you who should play next.
-*   **Game Messages:** It shows messages like "Your turn to play," "Watch out, King is in check!" or "You win!"
-*   **Pawn Gets a New Job:** When a pawn gets to the end of the board, a box pops up so you can choose a new, stronger piece for it.
-*   **Start Screen:** A nice screen at the beginning to help you choose how you want to play or see who the top players are.
-*   **Works on Any Screen:** The game looks good and works well on big computer screens and small phone screens.
+*   **Player Names:** Personalize the game by setting names for Player 1 and Player 2.
+*   **Light/Dark Theme:** Switch between sleek light and dark visual modes.
+*   **Appearance Customization:**
+    *   **Board Styles:** Choose from various board themes like Classic Wood, Cool Blue, and Forest Green.
+    *   **Piece Colors:** Select distinct colors for White and Black pieces.
+    *   An intuitive modal allows you to preview and apply these settings.
+
+## User Interface & Experience
+
+*   **Intuitive Controls:** Click a piece, then click its destination square to move.
+*   **Possible Moves Display:** See all valid moves for your selected piece.
+*   **Captured Pieces Display:** Clearly track pieces captured by each player.
+*   **Turn Indication:** Always know whose turn it is.
+*   **Game Status Messages:** Stay informed with messages like "Your turn," "King in Check!", or "Checkmate!"
+*   **Promotion Modal:** Easily choose your promotion piece when a pawn reaches the final rank.
+*   **Welcome Screen:** A user-friendly start screen to select game modes or view the Hall of Fame.
+*   **Responsive Design:** Enjoy a seamless experience on desktops, tablets, and mobile phones.
 
 ## Manage Your Games
 
-*   **Game Menu:** A menu button to find different game options.
+*   **Game Menu:** Access all game options through a convenient menu.
 *   **Save & Load Games:**
-    *   You can save your game if you want to stop and play later.
-    *   You can load a game you saved before.
-    *   You can delete saved games you don't want anymore.
-*   **Top Players (Hall of Fame):**
-    *   Keeps a list of winners from games played with friends or against the computer.
-    *   Shows who won, who they played against, and when.
-    *   You can clear this list if you want.
-*   **New Game:** You can easily start a new game or go back to the main start screen.
+    *   Save your current game to resume later.
+    *   Load previously saved games.
+    *   Delete unwanted saved games.
+*   **Hall of Fame:**
+    *   Tracks winners from "Play with Friend" and "Play AI" modes.
+    *   Displays winner, opponent, and game date.
+    *   Option to clear the Hall of Fame.
+*   **Reset & New Game:** Easily start a new game or return to the main menu.
+*   **In-Game Chess Guide:** **Learn chess rules**, piece movements, and special moves with our comprehensive built-in guide. Perfect for beginners or as a quick refresher.
 
-## A Little About How It's Made
+## Technical Details
 
-*   It's made with common tools for websites (React, TypeScript, and Tailwind CSS).
-*   It uses your computer's memory (localStorage) to remember your settings, saved games, and top players.
+*   Built with modern web technologies: React, TypeScript, and Tailwind CSS.
+*   Utilizes localStorage for persisting theme preferences, saved games, layout settings, and Hall of Fame entries.
 
-Have fun playing chess!
+Have fun playing this engaging **chess game** and sharpening your **chess strategy**!

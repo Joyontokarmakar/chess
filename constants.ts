@@ -62,7 +62,7 @@ export function createInitialBoard() {
 
 export const BOARD_STYLE_CONFIG = {
   'default-dark': {
-    light: {
+    light: { // Keeping light and dark variants for consistency, even if some are same
       container: "bg-slate-700/20 backdrop-blur-md border-2 border-slate-600/30 shadow-2xl shadow-black/50",
       lightSquare: "bg-slate-300/25 backdrop-blur-sm border border-slate-400/20",
       darkSquare: "bg-slate-700/35 backdrop-blur-sm border border-slate-600/20",
@@ -70,8 +70,9 @@ export const BOARD_STYLE_CONFIG = {
       selectedSquareRing: "ring-2 ring-yellow-300/70 ring-inset",
       possibleMoveDot: "bg-sky-400/80 opacity-70",
       possibleMoveRing: "ring-2 ring-pink-500/90 ring-inset opacity-80",
+      lastMoveSquareOverlay: "bg-yellow-500/30 pointer-events-none",
     },
-    dark: { // Same as light for default-dark, as it's already a dark theme
+    dark: { 
       container: "bg-slate-700/20 backdrop-blur-md border-2 border-slate-600/30 shadow-2xl shadow-black/50",
       lightSquare: "bg-slate-300/25 backdrop-blur-sm border border-slate-400/20",
       darkSquare: "bg-slate-700/35 backdrop-blur-sm border border-slate-600/20",
@@ -79,6 +80,7 @@ export const BOARD_STYLE_CONFIG = {
       selectedSquareRing: "ring-2 ring-yellow-300/70 ring-inset",
       possibleMoveDot: "bg-sky-400/80 opacity-70",
       possibleMoveRing: "ring-2 ring-pink-500/90 ring-inset opacity-80",
+      lastMoveSquareOverlay: "bg-yellow-500/30 pointer-events-none",
     }
   },
   'default-light': {
@@ -90,8 +92,9 @@ export const BOARD_STYLE_CONFIG = {
       selectedSquareRing: "ring-2 ring-amber-500/80 ring-inset",
       possibleMoveDot: "bg-sky-500/80 opacity-75",
       possibleMoveRing: "ring-2 ring-rose-500/90 ring-inset opacity-80",
+      lastMoveSquareOverlay: "bg-amber-600/30 pointer-events-none",
     },
-    dark: { // A dark variant for default-light if theme is switched
+    dark: { 
       container: "bg-slate-600/30 backdrop-blur-md border-2 border-slate-500/50 shadow-xl shadow-black/40",
       lightSquare: "bg-stone-400/70 backdrop-blur-sm border border-stone-500/50",
       darkSquare: "bg-stone-600/70 backdrop-blur-sm border border-stone-700/50",
@@ -99,26 +102,29 @@ export const BOARD_STYLE_CONFIG = {
       selectedSquareRing: "ring-2 ring-amber-600/80 ring-inset",
       possibleMoveDot: "bg-sky-400/80 opacity-75",
       possibleMoveRing: "ring-2 ring-rose-400/90 ring-inset opacity-80",
+      lastMoveSquareOverlay: "bg-yellow-600/30 pointer-events-none",
     }
   },
   'classic-wood': {
     light: {
       container: "bg-yellow-700/30 backdrop-blur-sm border-2 border-yellow-800/40 shadow-xl shadow-yellow-900/30",
-      lightSquare: "bg-yellow-200/80 border border-yellow-400/50", // Light wood
-      darkSquare: "bg-yellow-600/80 border border-yellow-700/50",  // Dark wood
+      lightSquare: "bg-yellow-200/80 border border-yellow-400/50", 
+      darkSquare: "bg-yellow-600/80 border border-yellow-700/50", 
       selectedSquareBg: "bg-green-500/40",
       selectedSquareRing: "ring-2 ring-green-600/60 ring-inset",
       possibleMoveDot: "bg-green-600/70",
       possibleMoveRing: "ring-2 ring-green-700/80 ring-inset",
+      lastMoveSquareOverlay: "bg-lime-400/40 pointer-events-none",
     },
     dark: {
       container: "bg-yellow-900/40 backdrop-blur-sm border-2 border-yellow-950/50 shadow-2xl shadow-black/40",
-      lightSquare: "bg-yellow-400/70 border border-yellow-600/50", // Darker light wood
-      darkSquare: "bg-yellow-800/70 border border-yellow-900/50",  // Darker dark wood
+      lightSquare: "bg-yellow-400/70 border border-yellow-600/50", 
+      darkSquare: "bg-yellow-800/70 border border-yellow-900/50", 
       selectedSquareBg: "bg-lime-500/40",
       selectedSquareRing: "ring-2 ring-lime-600/60 ring-inset",
       possibleMoveDot: "bg-lime-600/70",
       possibleMoveRing: "ring-2 ring-lime-700/80 ring-inset",
+      lastMoveSquareOverlay: "bg-green-400/40 pointer-events-none",
     }
   },
   'cool-blue': {
@@ -130,6 +136,7 @@ export const BOARD_STYLE_CONFIG = {
       selectedSquareRing: "ring-2 ring-indigo-500/60 ring-inset",
       possibleMoveDot: "bg-indigo-500/70",
       possibleMoveRing: "ring-2 ring-purple-600/80 ring-inset",
+      lastMoveSquareOverlay: "bg-teal-400/30 pointer-events-none",
     },
     dark: {
       container: "bg-blue-800/30 backdrop-blur-md border-2 border-blue-700/40 shadow-2xl shadow-black/40",
@@ -139,6 +146,7 @@ export const BOARD_STYLE_CONFIG = {
       selectedSquareRing: "ring-2 ring-purple-400/60 ring-inset",
       possibleMoveDot: "bg-purple-600/70",
       possibleMoveRing: "ring-2 ring-violet-500/80 ring-inset",
+      lastMoveSquareOverlay: "bg-cyan-400/30 pointer-events-none",
     }
   },
    'forest-green': {
@@ -150,6 +158,7 @@ export const BOARD_STYLE_CONFIG = {
       selectedSquareRing: "ring-2 ring-yellow-600/60 ring-inset",
       possibleMoveDot: "bg-orange-500/70",
       possibleMoveRing: "ring-2 ring-red-600/80 ring-inset",
+      lastMoveSquareOverlay: "bg-teal-500/30 pointer-events-none",
     },
     dark: {
       container: "bg-emerald-800/30 backdrop-blur-md border-2 border-emerald-700/40 shadow-2xl shadow-black/40",
@@ -159,6 +168,7 @@ export const BOARD_STYLE_CONFIG = {
       selectedSquareRing: "ring-2 ring-amber-400/60 ring-inset",
       possibleMoveDot: "bg-red-600/70",
       possibleMoveRing: "ring-2 ring-rose-500/80 ring-inset",
+      lastMoveSquareOverlay: "bg-green-500/30 pointer-events-none",
     }
   }
 };

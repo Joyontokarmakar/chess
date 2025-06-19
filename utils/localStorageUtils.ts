@@ -1,8 +1,8 @@
-import { HallOfFameEntry, GameMode, OnlineGameState, Theme, SavedGame, LayoutSettings } from '../types';
+import { HallOfFameEntry, GameMode, OnlineGameState, Theme, SavedGame, LayoutSettings, GameOverReason } from '../types';
 
 const HALL_OF_FAME_KEY = 'chessHallOfFame';
 const MAX_HALL_OF_FAME_ENTRIES = 10;
-const ONLINE_GAME_STATE_PREFIX = 'chess_online_game_';
+const ONLINE_GAME_STATE_PREFIX = 'chess_online_game_'; // Prefix for online game states
 const THEME_KEY = 'chessThemePreference';
 const SAVED_GAMES_KEY = 'chessSavedGames';
 const MAX_SAVED_GAMES = 5;
@@ -35,7 +35,8 @@ export function getHallOfFameEntries(): HallOfFameEntry[] {
     const entriesJson = localStorage.getItem(HALL_OF_FAME_KEY);
     if (entriesJson) {
       const entries = JSON.parse(entriesJson) as HallOfFameEntry[];
-      return entries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      // Sort by gameStartDateTime, most recent first
+      return entries.sort((a, b) => new Date(b.gameStartDateTime).getTime() - new Date(a.gameStartDateTime).getTime());
     }
   } catch (error) {
     console.error("Error retrieving Hall of Fame entries:", error);
@@ -43,23 +44,33 @@ export function getHallOfFameEntries(): HallOfFameEntry[] {
   return [];
 }
 
-export function saveHallOfFameEntry(winnerName: string, opponentName: string, mode: GameMode): void {
-  if (!mode || mode === 'online' || mode === 'loaded_friend') { // Don't save for 'online' or 'loaded_friend' games in HoF directly
-      if (mode === 'online') console.log("Online games not saved to Hall of Fame directly.");
-      return;
+export function saveHallOfFameEntry(
+  winnerName: string, 
+  opponentName: string, 
+  mode: GameMode,
+  gameStartTimeStamp: number | null, // Timestamp of game start
+  playDurationSeconds: number | null,
+  winReason?: GameOverReason | 'draw'
+): void {
+  if (!mode || mode === 'online') { 
+      // For 'online' (same-device sim), we could save HoF entries if desired.
+      // The original check was for Firestore-based online. We can enable it.
   }
 
   const newEntry: HallOfFameEntry = {
     id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
     winnerName,
     opponentName,
-    mode, // Will be 'friend' or 'computer'
-    date: new Date().toLocaleDateString(),
+    mode,
+    gameStartDateTime: gameStartTimeStamp ? new Date(gameStartTimeStamp).toISOString() : new Date().toISOString(), // Fallback for safety
+    playDurationSeconds,
+    winReason,
   };
 
   try {
     let entries = getHallOfFameEntries();
     entries.unshift(newEntry);
+    entries = entries.sort((a, b) => new Date(b.gameStartDateTime).getTime() - new Date(a.gameStartDateTime).getTime());
     entries = entries.slice(0, MAX_HALL_OF_FAME_ENTRIES);
     localStorage.setItem(HALL_OF_FAME_KEY, JSON.stringify(entries));
   } catch (error) {
@@ -75,16 +86,16 @@ export function clearHallOfFame(): void {
   }
 }
 
-// --- Online Game State ---
+// --- Online Game State (localStorage based) ---
 export function getOnlineGameStorageKey(gameId: string): string {
   return `${ONLINE_GAME_STATE_PREFIX}${gameId}`;
 }
 
 export function getOnlineGameState(gameId: string): OnlineGameState | null {
   try {
-    const stateJson = localStorage.getItem(getOnlineGameStorageKey(gameId));
-    if (stateJson) {
-      return JSON.parse(stateJson) as OnlineGameState;
+    const gameStateJson = localStorage.getItem(getOnlineGameStorageKey(gameId));
+    if (gameStateJson) {
+      return JSON.parse(gameStateJson) as OnlineGameState;
     }
   } catch (error) {
     console.error(`Error retrieving online game state for ${gameId}:`, error);
@@ -92,11 +103,12 @@ export function getOnlineGameState(gameId: string): OnlineGameState | null {
   return null;
 }
 
-export function setOnlineGameState(gameId: string, state: OnlineGameState): void {
+export function setOnlineGameState(gameId: string, gameState: OnlineGameState): void {
   try {
-    localStorage.setItem(getOnlineGameStorageKey(gameId), JSON.stringify(state));
+    localStorage.setItem(getOnlineGameStorageKey(gameId), JSON.stringify(gameState));
   } catch (error) {
     console.error(`Error saving online game state for ${gameId}:`, error);
+    // Potentially handle quota exceeded errors more gracefully if needed
   }
 }
 
@@ -114,7 +126,7 @@ export function getSavedGames(): SavedGame[] {
     const savedGamesJson = localStorage.getItem(SAVED_GAMES_KEY);
     if (savedGamesJson) {
       const games = JSON.parse(savedGamesJson) as SavedGame[];
-      return games.sort((a,b) => b.timestamp - a.timestamp); // Newest first
+      return games.sort((a,b) => b.timestamp - a.timestamp); // Newest first by save time
     }
   } catch (error) {
     console.error("Error retrieving saved games:", error);
@@ -125,11 +137,9 @@ export function getSavedGames(): SavedGame[] {
 export function saveGame(gameState: SavedGame): void {
   try {
     let savedGames = getSavedGames();
-    // Add new game and ensure ID is unique (though timestamp + random suffix should be enough)
-    savedGames = savedGames.filter(g => g.id !== gameState.id); // Remove if somehow exists
-    savedGames.unshift(gameState); // Add to the beginning (newest)
+    savedGames = savedGames.filter(g => g.id !== gameState.id); 
+    savedGames.unshift(gameState); 
     
-    // Limit the number of saved games
     if (savedGames.length > MAX_SAVED_GAMES) {
       savedGames = savedGames.slice(0, MAX_SAVED_GAMES);
     }
