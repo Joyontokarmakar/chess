@@ -1,5 +1,5 @@
 import React from 'react';
-import { Piece, PlayerColor } from '../types';
+import { Piece, PlayerColor, Theme, LayoutSettings } from '../types';
 import PieceDisplay from './PieceDisplay';
 
 interface CapturedPiecesDisplayProps {
@@ -8,9 +8,11 @@ interface CapturedPiecesDisplayProps {
   // playerColor indicates whose pieces these are (the ones that were captured)
   // For display, we want to know who captured them to style the name appropriately
   capturingPlayerColor: PlayerColor; 
+  theme: Theme;
+  layoutSettings: LayoutSettings;
 }
 
-const CapturedPiecesDisplay: React.FC<CapturedPiecesDisplayProps> = ({ pieces, playerName, capturingPlayerColor }) => {
+const CapturedPiecesDisplay: React.FC<CapturedPiecesDisplayProps> = ({ pieces, playerName, capturingPlayerColor, theme, layoutSettings }) => {
   if (pieces.length === 0) {
     // Render a placeholder to maintain layout consistency if desired, or null
     return (
@@ -34,7 +36,11 @@ const CapturedPiecesDisplay: React.FC<CapturedPiecesDisplayProps> = ({ pieces, p
         {pieces.map((piece, index) => (
           // Ensure key is unique for list items, piece.id might not be unique if multiple same pieces captured
           <div key={`${piece.id}-${index}-${piece.type}-${index}`} className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center" title={`${piece.color} ${piece.type}`}>
-            <PieceDisplay piece={piece} />
+            <PieceDisplay 
+              piece={piece}
+              theme={theme}
+              pieceColorOptionId={piece.color === PlayerColor.WHITE ? layoutSettings.whitePieceColor : layoutSettings.blackPieceColor}
+            />
           </div>
         ))}
       </div>

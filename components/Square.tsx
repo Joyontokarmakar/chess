@@ -1,6 +1,7 @@
 import React from 'react';
-import { SquareState, Position } from '../types';
+import { SquareState, Position, Theme, LayoutSettings, PlayerColor } from '../types';
 import PieceDisplay from './PieceDisplay';
+import { BoardStyleClasses } from '../utils/styleUtils'; // Assuming BoardStyleClasses is exported from styleUtils
 
 interface SquareProps {
   squareState: SquareState;
@@ -10,6 +11,9 @@ interface SquareProps {
   isPossibleMove: boolean;
   isKingInCheck: boolean;
   onClick: (pos: Position) => void;
+  theme: Theme;
+  boardClasses: BoardStyleClasses; // Use pre-calculated board style classes
+  layoutSettings: LayoutSettings; // Pass full layout settings for PieceDisplay
 }
 
 const Square: React.FC<SquareProps> = ({
@@ -20,20 +24,37 @@ const Square: React.FC<SquareProps> = ({
   isPossibleMove,
   isKingInCheck,
   onClick,
+  theme,
+  boardClasses, // Destructure passed board classes
+  layoutSettings, // Destructure layoutSettings
 }) => {
-  // Updated colors for classic theme
-  let bgColor = isLightSquare ? 'bg-stone-100' : 'bg-stone-500'; // Light: off-white, Dark: medium gray
+  const bgColorClass = isLightSquare ? boardClasses.lightSquare : boardClasses.darkSquare;
+  const selectedBgColorClass = boardClasses.selectedSquareBg;
+  const selectedRingClass = boardClasses.selectedSquareRing;
+  const possibleMoveDotClass = boardClasses.possibleMoveDot;
+  const possibleMoveRingClass = boardClasses.possibleMoveRing;
+  
+  let currentBg = bgColorClass;
+  let currentRing = '';
+
   if (isSelected) {
-    bgColor = 'bg-yellow-400 text-slate-800'; // Selected square, ensure text contrast if piece is on it
+    currentBg = selectedBgColorClass;
+    currentRing = selectedRingClass;
   }
   
+  // king-check-pulse can remain theme-dependent or be moved into BOARD_STYLE_CONFIG if needed
+  const kingCheckPulseClass = theme === 'dark' 
+    ? 'animate-[pulse_1.5s_cubic-bezier(0.4,0,0.6,1)_infinite] bg-red-700/50 border-red-500/70' 
+    : 'animate-[pulse_1.5s_cubic-bezier(0.4,0,0.6,1)_infinite] bg-red-400/50 border-red-300/70';
+
   const squareClasses = [
     'w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16',
     'flex items-center justify-center relative',
-    bgColor,
-    'transition-colors duration-100', // Faster transition
-    isKingInCheck && !isSelected ? 'king-check-pulse' : '' 
-  ].join(' ');
+    currentBg,
+    currentRing,
+    'transition-all duration-150',
+    isKingInCheck && !isSelected ? kingCheckPulseClass : '' // Use a more explicit class for king in check
+  ].filter(Boolean).join(' ');
 
 
   return (
@@ -44,11 +65,19 @@ const Square: React.FC<SquareProps> = ({
       tabIndex={0}
       aria-label={`Square ${String.fromCharCode(97 + position[1])}${8 - position[0]}${squareState ? `, ${squareState.color} ${squareState.type}` : ''}${isSelected ? ', selected' : ''}${isPossibleMove ? ', possible move' : ''}`}
     >
-      {squareState && <PieceDisplay piece={squareState} />}
+      {squareState && (
+        <PieceDisplay 
+          piece={squareState} 
+          pieceColorOptionId={squareState.color === PlayerColor.WHITE ? layoutSettings.whitePieceColor : layoutSettings.blackPieceColor}
+          theme={theme}
+        />
+      )}
       {isPossibleMove && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          {/* Dot for empty square, ring for capture */}
-          <div className={`w-1/3 h-1/3 rounded-full ${squareState ? 'ring-2 ring-red-500 ring-inset' : 'bg-teal-500 opacity-60'}`}></div>
+          <div 
+            className={`w-1/3 h-1/3 rounded-full 
+            ${squareState ? possibleMoveRingClass : possibleMoveDotClass}`}
+          ></div>
         </div>
       )}
     </div>

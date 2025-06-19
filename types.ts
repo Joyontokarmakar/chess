@@ -32,7 +32,7 @@ export interface GameStatus {
   message: string;
   isGameOver: boolean;
   winner?: PlayerColor;
-  winnerName?: string; 
+  winnerName?: string;
 }
 
 export interface MakeMoveResult {
@@ -40,10 +40,10 @@ export interface MakeMoveResult {
   newCastlingRights: CastlingRights;
   newEnPassantTarget: Position | null;
   promotionSquare: Position | null;
-  capturedPiece: Piece | null; 
+  capturedPiece: Piece | null;
 }
 
-export type GameMode = 'friend' | 'computer' | null;
+export type GameMode = 'friend' | 'computer' | 'online' | 'loaded_friend' | null;
 
 export interface AIMove {
   from: Position;
@@ -51,9 +51,58 @@ export interface AIMove {
   promotion?: PieceType; // e.g., 'Q', 'R', 'B', 'N'
 }
 
-export interface LeaderboardEntry {
-  id: string; // Unique ID for the entry, e.g., timestamp based
+export interface HallOfFameEntry {
+  id: string;
   winnerName: string;
-  gameStartTime: number; // Unix timestamp (milliseconds)
-  gameEndTime: number;   // Unix timestamp (milliseconds)
+  opponentName: string;
+  mode: GameMode;
+  date: string; // e.g., "10/25/2023"
+}
+
+export interface OnlineGameState {
+  boardState: BoardState;
+  currentPlayer: PlayerColor;
+  castlingRights: CastlingRights;
+  enPassantTarget: Position | null;
+  capturedByWhite: Piece[];
+  capturedByBlack: Piece[];
+  gameStatus: GameStatus;
+  player1Name: string; // Host (White)
+  player2Name: string | null; // Joiner (Black), null if waiting
+  isGameReady: boolean; // True when player 2 has joined
+  lastMoveBy: PlayerColor | null; // Tracks who made the last move to avoid self-updates from storage events
+  kingInCheckPosition: Position | null;
+}
+
+export type Theme = 'light' | 'dark';
+
+export interface SavedGame {
+  id: string; // Unique ID, typically timestamp-based
+  name: string; // e.g., "vs Computer - 2023-10-27 10:30"
+  timestamp: number;
+  gameMode: 'friend' | 'computer' | 'loaded_friend'; // Online games are saved as 'loaded_friend'
+  boardState: BoardState;
+  currentPlayer: PlayerColor;
+  player1Name: string;
+  player2Name: string;
+  castlingRights: CastlingRights;
+  enPassantTarget: Position | null;
+  capturedByWhite: Piece[];
+  capturedByBlack: Piece[];
+  gameStatus: GameStatus; // Snapshot of game status
+  kingInCheckPosition: Position | null;
+  originalLocalPlayerColor?: PlayerColor | null;
+}
+
+// Layout and Styling Types
+export type BoardStyleId = 'default-dark' | 'default-light' | 'classic-wood' | 'cool-blue' | 'forest-green';
+
+export type PieceColorOption =
+  | 'white-theme-default' | 'white-classic-white' | 'white-fiery-red' | 'white-golden-yellow' | 'white-deep-blue' | 'white-silver-gray' | 'white-emerald-green'
+  | 'black-theme-default' | 'black-classic-black' | 'black-fiery-red' | 'black-golden-yellow' | 'black-deep-blue' | 'black-silver-gray' | 'black-emerald-green';
+
+export interface LayoutSettings {
+  boardStyleId: BoardStyleId;
+  whitePieceColor: PieceColorOption;
+  blackPieceColor: PieceColorOption;
 }

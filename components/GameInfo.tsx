@@ -1,51 +1,72 @@
 import React from 'react';
-import { PlayerColor, GameStatus } from '../types';
+import { PlayerColor, GameStatus, Theme } from '../types'; 
 
 interface GameInfoProps {
   currentPlayerName: string; 
   gameStatus: GameStatus;
-  onReset: () => void;
+  onReset: () => void; // This will now trigger opening the menu. Full reset logic in App.tsx via Menu.
   isGameOver: boolean;
-  isComputerThinking?: boolean; // New prop
-  gameMode?: 'friend' | 'computer' | null; // New prop
+  theme: Theme;
 }
 
-const GameInfo: React.FC<GameInfoProps> = ({ currentPlayerName, gameStatus, onReset, isGameOver, isComputerThinking, gameMode }) => {
-  let turnText = `${currentPlayerName}'s Turn`;
-  
-  if (isComputerThinking && gameMode === 'computer') {
-    turnText = `${currentPlayerName} is thinking...`;
-  } else if (gameStatus.isGameOver) {
-    if (gameStatus.winnerName) {
-      turnText = `Game Over`; 
-    } else if (gameStatus.message.toLowerCase().includes("stalemate")) {
-      turnText = "Game Over";
-    } else {
-      turnText = "Game Over";
+const GameInfo: React.FC<GameInfoProps> = ({ currentPlayerName, gameStatus, onReset, isGameOver, theme }) => {
+  const infoTitle = isGameOver ? "Game Over!" : "Game Updates";
+
+  let messageColorClass = '';
+  let panelBgClass = '';
+  let titleColorClass = '';
+  let resetBtnClass = '';
+  let titleShadowClass = '';
+
+  if (theme === 'dark') {
+    messageColorClass = 'text-slate-300';
+    panelBgClass = 'bg-slate-700/50 backdrop-blur-xl border border-slate-500/40 shadow-black/40';
+    titleColorClass = 'text-slate-100';
+    titleShadowClass = '0 0 8px rgba(255,255,255,0.1)';
+    resetBtnClass = 'bg-gradient-to-r from-red-600/90 to-rose-700/90 hover:from-red-500/95 hover:to-rose-600/95 text-white focus-visible:ring-rose-400 shadow-lg hover:shadow-rose-500/40';
+    if (gameStatus.winner) {
+      messageColorClass = gameStatus.winner === PlayerColor.WHITE ? 'text-rose-400 font-semibold' : 'text-cyan-400 font-semibold';
+    } else if (gameStatus.message.toLowerCase().includes('checkmate')) {
+      messageColorClass = 'text-red-400 font-bold';
+    } else if (gameStatus.message.toLowerCase().includes('stalemate')) {
+      messageColorClass = 'text-sky-400 font-semibold';
+    } else if (gameStatus.message.toLowerCase().includes('check!')) {
+      messageColorClass = 'text-amber-400 font-semibold';
     }
-  } else if (gameStatus.message.toLowerCase().includes("check!")) {
-     turnText = `${currentPlayerName} is in Check!`;
+  } else { // Light theme
+    messageColorClass = 'text-slate-600';
+    panelBgClass = 'bg-white/70 backdrop-blur-xl border border-gray-300/60 shadow-gray-400/30';
+    titleColorClass = 'text-slate-800';
+    titleShadowClass = '0 0 6px rgba(0,0,0,0.1)';
+    resetBtnClass = 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white focus-visible:ring-rose-400 shadow-lg hover:shadow-rose-600/40';
+     if (gameStatus.winner) {
+      messageColorClass = gameStatus.winner === PlayerColor.WHITE ? 'text-red-600 font-bold' : 'text-blue-600 font-bold';
+    } else if (gameStatus.message.toLowerCase().includes('checkmate')) {
+      messageColorClass = 'text-red-700 font-extrabold';
+    } else if (gameStatus.message.toLowerCase().includes('stalemate')) {
+      messageColorClass = 'text-sky-700 font-bold';
+    } else if (gameStatus.message.toLowerCase().includes('check!')) {
+      messageColorClass = 'text-amber-600 font-bold';
+    }
   }
 
 
   return (
-    <div className="p-4 sm:p-5 bg-stone-50 text-slate-700 rounded-lg shadow-lg w-full max-w-md text-center border border-stone-300">
-      <h2 className="text-xl sm:text-2xl font-bold mb-2 text-slate-800">
-        {turnText}
+    <div className={`p-4 sm:p-5 shadow-xl w-full max-w-md text-center rounded-xl ${panelBgClass}`}>
+      <h2 className={`text-xl sm:text-2xl font-bold mb-2 ${titleColorClass}`} style={{textShadow: titleShadowClass}}>
+        {infoTitle}
       </h2>
-      <p className={`text-sm sm:text-base mb-3 h-10 flex items-center justify-center font-medium ${
-        gameStatus.winner ? 'text-green-600' : 
-        gameStatus.message.toLowerCase().includes('checkmate') ? 'text-red-600' : 
-        gameStatus.message.toLowerCase().includes('stalemate') ? 'text-blue-600' :
-        'text-slate-600'
-      }`}>
+      <p 
+        className={`text-sm sm:text-base mb-3 min-h-[2.5rem] flex items-center justify-center font-medium px-2 ${messageColorClass}`}
+        aria-live="polite"
+      >
         {gameStatus.message}
       </p>
       <button
-        onClick={onReset}
-        className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-md shadow-sm hover:shadow-md transform hover:scale-105 transition-all duration-150 ease-in-out text-md"
+        onClick={onReset} 
+        className={`px-6 py-3 font-semibold rounded-lg text-md transition-all duration-200 ease-in-out transform hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-opacity-75 ${resetBtnClass}`}
       >
-        Reset Game & Choose Mode
+        Open Game Menu 
       </button>
     </div>
   );

@@ -1,12 +1,11 @@
+
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
-import { BoardState, PlayerColor, CastlingRights, Position, PieceType, AIMove, SquareState, Piece } from '../types';
+import { BoardState, PlayerColor, CastlingRights, Position, PieceType, AIMove, Piece } from '../types';
+import { getPossibleMoves } from './chessLogic'; // Import getPossibleMoves
 
 const API_KEY = process.env.API_KEY;
 if (!API_KEY) {
-  // This will prevent the app from crashing if API_KEY is not set,
-  // but AI functionality will be disabled.
-  // In a real app, you might want a more user-friendly message or fallback.
-  console.warn("API_KEY environment variable is not set. AI opponent will not function.");
+  console.warn("API_KEY environment variable is not set. AI opponent will use a basic offline random move generator if played against.");
 }
 const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
 
@@ -35,25 +34,57 @@ function formatCastlingRightsForAI(castlingRights: CastlingRights): any {
 
 export async function getComputerMove(
   boardState: BoardState,
-  currentPlayer: PlayerColor,
+  currentPlayer: PlayerColor, // This will be PlayerColor.BLACK for the AI
   castlingRights: CastlingRights,
   enPassantTarget: Position | null
 ): Promise<AIMove | null> {
   if (!ai) {
-    console.error("Gemini AI client is not initialized. Cannot get computer move.");
-    // Fallback: return a random valid move or null
-    // For now, returning null which will be handled by the caller.
-    return null; 
+    console.log("Gemini AI client not initialized. Using offline random move generator.");
+    
+    const allPossibleMovesForAI: Array<{ from: Position; to: Position; promotion?: PieceType }> = [];
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const piece = boardState[r][c];
+        if (piece && piece.color === currentPlayer) { // currentPlayer is PlayerColor.BLACK for AI
+          const moves = getPossibleMoves(boardState, [r, c], currentPlayer, castlingRights, enPassantTarget);
+          moves.forEach(move => {
+            allPossibleMovesForAI.push({ from: [r,c] as Position, to: move });
+          });
+        }
+      }
+    }
+
+    if (allPossibleMovesForAI.length === 0) {
+      console.log("Offline AI: No legal moves found.");
+      return null; 
+    }
+
+    const randomMoveIndex = Math.floor(Math.random() * allPossibleMovesForAI.length);
+    const randomMove = allPossibleMovesForAI[randomMoveIndex];
+
+    const pieceBeingMoved = boardState[randomMove.from[0]][randomMove.from[1]];
+    if (
+      pieceBeingMoved &&
+      pieceBeingMoved.type === PieceType.PAWN &&
+      pieceBeingMoved.color === PlayerColor.BLACK && // AI is Black
+      randomMove.to[0] === 7 // Promotion rank for Black pawns (board is 0-indexed, 7 is White's back rank)
+    ) {
+      randomMove.promotion = PieceType.QUEEN; // Default to Queen for offline AI promotion
+      console.log("Offline AI: Pawn promotion to Queen selected for move:", randomMove);
+    }
+    console.log("Offline AI selected move:", randomMove);
+    return randomMove;
   }
 
+  // If ai client is available, proceed with API call
   const formattedBoard = formatBoardForAI(boardState);
   const formattedCastlingRights = formatCastlingRightsForAI(castlingRights);
   
   const promptPayload = {
     board: formattedBoard,
-    currentPlayer: currentPlayer, // "White" or "Black"
+    currentPlayer: currentPlayer, 
     castlingRights: formattedCastlingRights,
-    enPassantTarget: enPassantTarget, // [row, col] or null
+    enPassantTarget: enPassantTarget,
   };
 
   const systemInstruction = `You are a chess engine. Your goal is to play a strong game of chess as the ${currentPlayer} player.
@@ -65,12 +96,12 @@ Only provide valid, legal moves for the ${currentPlayer} player. Prioritize winn
 
   try {
     const response: GenerateContentResponse = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview-04-17", // Ensure this model supports JSON mode well enough or adjust prompt
-      contents: JSON.stringify(promptPayload), // Send the structured data as a string within contents
+      model: "gemini-2.5-flash-preview-04-17",
+      contents: JSON.stringify(promptPayload),
       config: {
         systemInstruction: systemInstruction,
-        responseMimeType: "application/json", // Critical for getting JSON output
-        // thinkingConfig: { thinkingBudget: 0 } // For lower latency, if needed
+        responseMimeType: "application/json",
+        thinkingConfig: { thinkingBudget: 0 } 
       }
     });
 
@@ -83,7 +114,6 @@ Only provide valid, legal moves for the ${currentPlayer} player. Prioritize winn
     
     const parsedMove = JSON.parse(jsonStr) as AIMove;
 
-    // Basic validation of the parsed move structure
     if (
       parsedMove &&
       Array.isArray(parsedMove.from) && parsedMove.from.length === 2 &&
@@ -91,21 +121,35 @@ Only provide valid, legal moves for the ${currentPlayer} player. Prioritize winn
       typeof parsedMove.from[0] === 'number' && typeof parsedMove.from[1] === 'number' &&
       typeof parsedMove.to[0] === 'number' && typeof parsedMove.to[1] === 'number'
     ) {
-      if (parsedMove.promotion && !['Q', 'R', 'B', 'N'].includes(parsedMove.promotion)) {
-        console.warn("AI suggested invalid promotion type:", parsedMove.promotion);
-        // Decide how to handle: remove promotion, or consider move invalid
-        delete parsedMove.promotion; 
+      const fromRow = parsedMove.from[0];
+      const fromCol = parsedMove.from[1]; 
+      const toRow = parsedMove.to[0];
+
+      const pieceBeingMovedOnline = boardState[fromRow]?.[fromCol];
+
+      if (pieceBeingMovedOnline &&
+          pieceBeingMovedOnline.type === PieceType.PAWN &&
+          pieceBeingMovedOnline.color === PlayerColor.BLACK && 
+          toRow === 7 
+      ) {
+          if (!parsedMove.promotion || !['Q', 'R', 'B', 'N'].includes(parsedMove.promotion)) {
+              console.warn(`Online AI move from [${fromRow},${fromCol}] to [${toRow},${parsedMove.to[1]}] is a promotion for Black but no valid promotion piece was specified. Defaulting to Queen.`);
+              parsedMove.promotion = PieceType.QUEEN; 
+          }
+      } else if (parsedMove.promotion && !['Q', 'R', 'B', 'N'].includes(parsedMove.promotion)) {
+         console.warn("Online AI suggested invalid promotion type:", parsedMove.promotion, "Removing it.");
+         delete parsedMove.promotion; 
       }
       return parsedMove;
     } else {
-      console.error("AI response is not in the expected format:", parsedMove);
+      console.error("Online AI response is not in the expected AIMove format:", parsedMove);
       return null;
     }
 
   } catch (error) {
     console.error("Error calling Gemini API or parsing response:", error);
-    // More specific error handling could be added here
-    // e.g. if error.message includes "SAFETY", etc.
+    // If the API call fails (e.g., network error, API key issue after initialization),
+    // return null. App.tsx will handle this by giving the turn back to White.
     return null;
   }
 }

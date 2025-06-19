@@ -6,13 +6,43 @@
   <title>Classic Chess Championship</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
+    :root {
+      --body-bg-light: linear-gradient(to bottom right, #E0E7FF, #F3F4F6, #E5E7EB); /* Light indigo/slate gradient */
+      --body-bg-dark: linear-gradient(to bottom right, #1E293B, #111827, #0F172A); /* Dark slate/gray gradient */
+      --text-light: #F3F4F6; /* slate-100 */
+      --text-dark: #1F2937; /* gray-800 */
+      
+      --piece-shadow-light-text: rgba(0,0,0,0.2);
+      --piece-shadow-light-color: rgba(0,0,0,0.1);
+      --piece-shadow-dark-text: rgba(255,255,255,0.2);
+      --piece-shadow-dark-color: rgba(255,255,255,0.1);
+
+      --piece-hover-shadow-light-text: rgba(0,0,0,0.3);
+      --piece-hover-shadow-light-color: currentColor; /* Will be piece color */
+      --piece-hover-shadow-dark-text: rgba(255,255,255,0.4);
+      --piece-hover-shadow-dark-color: currentColor; /* Will be piece color */
+
+      --king-check-pulse-light: rgba(239, 68, 68, 0.7); /* red-500 */
+      --king-check-pulse-dark: rgba(255, 20, 20, 0.9);
+    }
+
     body { 
       margin: 0; 
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-      overflow-x: hidden; /* Prevent horizontal scroll */
+      overflow-x: hidden;
+      transition: background-color 0.3s ease, color 0.3s ease;
     }
+    body.theme-light {
+      background: var(--body-bg-light);
+      color: var(--text-dark);
+    }
+    body.theme-dark {
+      background: var(--body-bg-dark);
+      color: var(--text-light);
+    }
+
     .chess-piece {
-      font-size: 2.3rem; /* Base size, slightly increased */
+      font-size: 2.3rem;
       line-height: 1;
       display: flex;
       align-items: center;
@@ -20,45 +50,116 @@
       width: 100%;
       height: 100%;
       cursor: pointer;
-      /* Adjusted shadow for better visibility on new colors, more subtle */
-      text-shadow: 0.03em 0.03em 0.05em rgba(0, 0, 0, 0.4);
-      transition: transform 0.1s ease-in-out;
+      transition: transform 0.15s ease-in-out, text-shadow 0.15s ease-in-out;
     }
+    body.theme-light .chess-piece {
+      text-shadow: 0 0 0.05em var(--piece-shadow-light-text), 0.02em 0.02em 0.05em var(--piece-shadow-light-color);
+    }
+    body.theme-dark .chess-piece {
+      text-shadow: 0 0 0.1em var(--piece-shadow-dark-text), 0.03em 0.03em 0.08em var(--piece-shadow-dark-color);
+    }
+
     .chess-piece:hover {
-        transform: scale(1.1);
+        transform: scale(1.15);
     }
+    body.theme-light .chess-piece:hover {
+        text-shadow: 0 0 0.15em var(--piece-hover-shadow-light-text), 0 0 0.3em var(--piece-hover-shadow-light-color), 0.02em 0.02em 0.05em rgba(0,0,0,0.3);
+    }
+    body.theme-dark .chess-piece:hover {
+        text-shadow: 0 0 0.25em var(--piece-hover-shadow-dark-text), 0 0 0.5em var(--piece-hover-shadow-dark-color), 0.03em 0.03em 0.08em rgba(0,0,0,0.5);
+    }
+
     .captured-piece .chess-piece {
-        font-size: 1.6rem; /* Smaller for captured pieces */
-        text-shadow: 0.02em 0.02em 0.03em rgba(0,0,0,0.4);
+        font-size: 1.5rem !important; 
+        cursor: default;
     }
-     .captured-piece .chess-piece:hover {
-        transform: none; /* No hover scale for captured pieces display */
+    body.theme-light .captured-piece .chess-piece {
+        text-shadow: 0 0 0.03em rgba(0,0,0,0.15), 0.01em 0.01em 0.02em rgba(0,0,0,0.3) !important;
+    }
+    body.theme-dark .captured-piece .chess-piece {
+        text-shadow: 0 0 0.05em rgba(255,255,255,0.15), 0.02em 0.02em 0.04em rgba(0,0,0,0.4) !important;
+    }
+    .captured-piece .chess-piece:hover { transform: none; }
+    body.theme-light .captured-piece .chess-piece:hover { text-shadow: 0 0 0.03em rgba(0,0,0,0.15), 0.01em 0.01em 0.02em rgba(0,0,0,0.3) !important; }
+    body.theme-dark .captured-piece .chess-piece:hover { text-shadow: 0 0 0.05em rgba(255,255,255,0.15), 0.02em 0.02em 0.04em rgba(0,0,0,0.4) !important; }
+    
+    .player-avatar .chess-piece {
+        font-size: 2.8rem !important; 
+    }
+    body.theme-light .player-avatar .chess-piece {
+        text-shadow: 0 0 0.1em rgba(0,0,0,0.15), 0.03em 0.03em 0.07em rgba(0,0,0,0.3) !important;
+    }
+    body.theme-dark .player-avatar .chess-piece {
+        text-shadow: 0 0 0.15em rgba(255,255,255,0.2), 0.04em 0.04em 0.1em rgba(0,0,0,0.4) !important;
     }
 
     @media (min-width: 640px) { /* sm breakpoint */
-      .chess-piece {
-        font-size: 2.6rem;
-      }
-      .captured-piece .chess-piece {
-        font-size: 1.9rem;
-      }
+      .chess-piece { font-size: 2.6rem; }
+      .captured-piece .chess-piece { font-size: 1.8rem !important; }
+      .player-avatar .chess-piece { font-size: 3.2rem !important; }
     }
     @media (min-width: 768px) { /* md breakpoint */
-      .chess-piece {
-        font-size: 3rem; 
-      }
-      .captured-piece .chess-piece {
-        font-size: 2.1rem;
-      }
+      .chess-piece { font-size: 3rem; }
+      .captured-piece .chess-piece { font-size: 2rem !important; }
+      .player-avatar .chess-piece { font-size: 3.8rem !important; }
     }
-     /* Custom pulse for king in check */
-    .king-check-pulse {
-      animation: pulse-border 1.5s infinite;
+    
+    .king-check-pulse { animation: pulse-glow-border 1.5s infinite; }
+    @keyframes pulse-glow-border {
+      0%, 100% { box-shadow: 0 0 0 0 var(--border-color); }
+      50% { box-shadow: 0 0 0.8rem 0.6rem var(--shadow-color-pulse); }
     }
-    @keyframes pulse-border {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); } /* Tailwind red-600 */
-      50% { box-shadow: 0 0 0 0.5rem rgba(220, 38, 38, 0); }
+    body.theme-light .king-check-pulse {
+        --border-color: var(--king-check-pulse-light);
+        --shadow-color-pulse: rgba(239, 68, 68, 0.1); /* Lighter pulse for light theme */
     }
+    body.theme-dark .king-check-pulse {
+        --border-color: var(--king-check-pulse-dark);
+        --shadow-color-pulse: rgba(255, 20, 20, 0.1);
+    }
+
+    ::selection { background-color: #FACC15; color: #1E293B; }
+    ::-moz-selection { background-color: #FACC15; color: #1E293B; }
+
+    /* For theme toggle switch */
+    .theme-switch-checkbox { display: none; }
+    .theme-switch-label {
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 50px;
+      height: 26px;
+      background-color: #4A5568; /* gray-700 */
+      border-radius: 50px;
+      position: relative;
+      transition: background-color 0.2s;
+    }
+    .theme-switch-checkbox:checked + .theme-switch-label {
+      background-color: #4299E1; /* blue-500 */
+    }
+    .theme-switch-ball {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 22px;
+      height: 22px;
+      background-color: white;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+    .theme-switch-checkbox:checked + .theme-switch-label .theme-switch-ball {
+      transform: translateX(24px);
+    }
+    .theme-switch-icon {
+      font-size: 0.8rem;
+      color: #FBBF24; /* amber-400 for sun */
+      padding: 0 5px;
+    }
+    .theme-switch-label .theme-switch-icon:last-child {
+      color: #A78BFA; /* violet-400 for moon */
+    }
+
   </style>
 <script type="importmap">
 {
@@ -72,7 +173,7 @@
 </script>
 <link rel="stylesheet" href="/index.css">
 </head>
-<body class="bg-stone-200 text-slate-800">
+<body class="theme-dark"> <!-- Default to dark theme -->
   <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>

@@ -1,6 +1,7 @@
 import React from 'react';
-import { BoardState, Position, PlayerColor } from '../types';
+import { BoardState, Position, PlayerColor, Theme, LayoutSettings } from '../types';
 import Square from './Square';
+import { getBoardClasses } from '../utils/styleUtils'; // Import the utility function
 
 interface BoardProps {
   boardState: BoardState;
@@ -9,6 +10,8 @@ interface BoardProps {
   possibleMoves: Position[];
   currentPlayer: PlayerColor; 
   kingInCheckPosition: Position | null; 
+  theme: Theme;
+  layoutSettings: LayoutSettings; // Added layoutSettings prop
 }
 
 const Board: React.FC<BoardProps> = ({
@@ -16,10 +19,15 @@ const Board: React.FC<BoardProps> = ({
   onSquareClick,
   selectedPiecePosition,
   possibleMoves,
-  kingInCheckPosition,
+  kingInCheckPosition, // currentPlayer is not used in this component directly
+  theme,
+  layoutSettings, // Destructure layoutSettings
 }) => {
+  // Get board style classes using the utility function and current settings
+  const currentBoardStyle = getBoardClasses(layoutSettings.boardStyleId, theme);
+
   return (
-    <div className="grid grid-cols-8 border-4 border-stone-700 shadow-xl shadow-stone-900/30 rounded-lg overflow-hidden">
+    <div className={`grid grid-cols-8 rounded-lg overflow-hidden ${currentBoardStyle.container}`}>
       {boardState.map((rowState, rowIndex) =>
         rowState.map((squareState, colIndex) => {
           const position: Position = [rowIndex, colIndex];
@@ -44,6 +52,9 @@ const Board: React.FC<BoardProps> = ({
               isPossibleMove={isPossible}
               isKingInCheck={isCurrentKingInCheckSquare}
               onClick={onSquareClick}
+              theme={theme}
+              boardClasses={currentBoardStyle} // Pass the calculated board style classes
+              layoutSettings={layoutSettings} // Pass full layoutSettings for PieceDisplay in Square
             />
           );
         })
