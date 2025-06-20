@@ -1,7 +1,7 @@
 import React from 'react';
 import { Piece, PlayerColor, PieceType, Theme, LayoutSettings } from '../types'; 
-import { PIECE_SYMBOLS } from '../constants';
 import PieceDisplay from './PieceDisplay';
+import { getPieceIconColor } from '../utils/styleUtils';
 
 interface PlayerDisplayPanelProps {
   playerName: string;
@@ -10,8 +10,8 @@ interface PlayerDisplayPanelProps {
   isCurrentTurn: boolean;
   theme: Theme;
   layoutSettings: LayoutSettings;
-  timeLeft?: number | null; // Time left in seconds
-  timeLimit?: number | null; // Original time limit
+  timeLeft?: number | null; 
+  timeLimit?: number | null; 
 }
 
 const formatTime = (seconds: number | null | undefined): string => {
@@ -31,7 +31,6 @@ const PlayerDisplayPanel: React.FC<PlayerDisplayPanelProps> = ({
   timeLeft,
   timeLimit,
 }) => {
-  const avatarPieceColorOption = playerColor === PlayerColor.WHITE ? layoutSettings.whitePieceColor : layoutSettings.blackPieceColor;
   
   let panelBg = '';
   let baseBorder = '';
@@ -42,6 +41,7 @@ const PlayerDisplayPanel: React.FC<PlayerDisplayPanelProps> = ({
   let timerUrgentColor = '';
   let timerCriticalColor = '';
   let timerBgClass = '';
+  let activeTimerHighlightClass = '';
   
   const avatarPieceForDisplay: Piece = { 
     id: `avatar-${playerColor}`, 
@@ -64,6 +64,7 @@ const PlayerDisplayPanel: React.FC<PlayerDisplayPanelProps> = ({
     timerUrgentColor = 'text-yellow-400 animate-pulse';
     timerCriticalColor = 'text-red-400 font-bold animate-pulse';
     timerBgClass = 'bg-slate-800/50 border-slate-600/70';
+    activeTimerHighlightClass = 'ring-1 ring-sky-300/70 shadow-[0_0_8px_rgba(56,189,248,0.35)]';
   } else { // Light theme
     panelBg = playerColor === PlayerColor.WHITE ? 'bg-white/50' : 'bg-slate-50/60';
     baseBorder = 'border-gray-300/60';
@@ -74,6 +75,7 @@ const PlayerDisplayPanel: React.FC<PlayerDisplayPanelProps> = ({
     timerUrgentColor = 'text-yellow-600 animate-pulse';
     timerCriticalColor = 'text-red-600 font-bold animate-pulse';
     timerBgClass = 'bg-gray-100/70 border-gray-300/80';
+    activeTimerHighlightClass = 'ring-1 ring-sky-600/70 shadow-[0_0_8px_rgba(14,165,233,0.25)]';
   }
   
   const highlightClasses = isCurrentTurn 
@@ -91,27 +93,39 @@ const PlayerDisplayPanel: React.FC<PlayerDisplayPanelProps> = ({
   }
   
   const showTimer = typeof timeLimit === 'number';
+  const timerContainerClasses = `
+    mb-1 sm:mb-1.5 p-1 sm:p-1.5 rounded-md shadow-inner text-center 
+    ${timerBgClass} 
+    ${isCurrentTurn && showTimer ? activeTimerHighlightClass : ''}
+    transition-all duration-200
+  `;
+  
+  const avatarIconColor = getPieceIconColor(avatarPieceForDisplay.color, theme, layoutSettings);
+  const avatarIconSize = "32px"; 
+
+  const capturedPieceIconSize = "18px";
+
 
   return (
     <div
       className={`w-full max-w-lg p-1.5 sm:p-2 rounded-xl shadow-xl ${panelBg} backdrop-blur-lg border-2 flex items-start space-x-2 sm:space-x-3 ${highlightClasses} transition-all duration-250 ease-in-out`}
       style={{ '--shadow-color': currentShadowColor } as React.CSSProperties}
     >
-      <div className="flex flex-col items-center justify-start w-12 sm:w-14 flex-shrink-0 pt-0.5 player-avatar">
+      <div className="flex flex-col items-center justify-start w-12 sm:w-14 flex-shrink-0 pt-0.5">
         <PieceDisplay 
             piece={avatarPieceForDisplay} 
-            pieceColorOptionId={avatarPieceColorOption}
-            theme={theme}
-            // className is now controlled by .player-avatar .chess-piece in index.html for size
+            size={avatarIconSize}
+            color={avatarIconColor}
+            className="mb-0.5 sm:mb-1"
         />
-        <p className={`mt-0.5 sm:mt-1 text-xs sm:text-sm font-semibold ${nameTextColor} text-center break-words w-full`}>
+        <p className={`text-xs sm:text-sm font-semibold ${nameTextColor} text-center break-words w-full`}>
           {playerName}
         </p>
       </div>
 
       <div className="flex-1 min-w-0">
         {showTimer && (
-          <div className={`mb-1 sm:mb-1.5 p-1 sm:p-1.5 rounded-md shadow-inner text-center ${timerBgClass}`}>
+          <div className={timerContainerClasses}>
             <p className={`text-base sm:text-lg font-mono font-semibold ${timerDisplayColor} transition-colors duration-300`} aria-label={`${playerName} time left: ${formatTime(timeLeft)}`}>
               {formatTime(timeLeft)}
             </p>
@@ -120,26 +134,27 @@ const PlayerDisplayPanel: React.FC<PlayerDisplayPanelProps> = ({
         <h4 className={`text-[0.65rem] sm:text-xs leading-tight font-medium mb-1 ${capturedLabelColor}`}>
           Captured:
         </h4>
-        {capturedPieces.length === 0 ? (
-          <p className={`text-[0.65rem] sm:text-xs italic py-0.5 ${noCapturedTextColor}`}>No pieces captured.</p>
-        ) : (
-          <div className="flex flex-wrap gap-x-px gap-y-px items-center captured-piece min-h-[1.5rem] sm:min-h-[1.75rem]">
-            {capturedPieces.map((piece) => (
-              <div
-                key={`${piece.id}-${piece.color}-${piece.type}-${Math.random()}`} 
-                className="w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center" // Smaller wrapper for captured pieces
-                title={`${piece.color} ${piece.type}`}
-              >
-                <PieceDisplay 
-                  piece={piece} 
-                  pieceColorOptionId={piece.color === PlayerColor.WHITE ? layoutSettings.whitePieceColor : layoutSettings.blackPieceColor}
-                  theme={theme}
-                  // className is now controlled by .captured-piece .chess-piece in index.html for size
-                />
-              </div>
-            ))}
-          </div>
-        )}
+        <div className="captured-pieces-container"> 
+          {capturedPieces.length === 0 ? (
+            <p className={`text-[0.65rem] sm:text-xs italic py-0.5 ${noCapturedTextColor}`}>No pieces captured.</p>
+          ) : (
+            <div className="flex flex-wrap gap-x-0.5 gap-y-0.5 items-center min-h-[1.1rem] sm:min-h-[1.3rem]">
+              {capturedPieces.map((piece, index) => (
+                <div
+                  key={`${piece.id}-${index}-${piece.type}`} 
+                  className="flex items-center justify-center" 
+                  title={`${piece.color} ${piece.type}`}
+                >
+                  <PieceDisplay 
+                    piece={piece} 
+                    size={capturedPieceIconSize}
+                    color={getPieceIconColor(piece.color, theme, layoutSettings)}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import React from 'react';
 import { SquareState, Position, Theme, LayoutSettings, PlayerColor } from '../types';
 import PieceDisplay from './PieceDisplay';
-import { BoardStyleClasses } from '../utils/styleUtils';
+import { BoardStyleClasses, getPieceIconColor } from '../utils/styleUtils';
 
 interface SquareProps {
   squareState: SquareState;
@@ -13,9 +13,13 @@ interface SquareProps {
   onClick: (pos: Position) => void;
   theme: Theme;
   boardClasses: BoardStyleClasses;
-  layoutSettings: LayoutSettings;
-  isLastMoveFromSquare: boolean; // New prop
-  isLastMoveToSquare: boolean;   // New prop
+  layoutSettings: LayoutSettings; 
+  isLastMoveFromSquare: boolean; 
+  isLastMoveToSquare: boolean;
+  lastMoveForFlashKey: { from: Position; to: Position } | null;
+  isHintFromSquare: boolean; // New prop for hint
+  isHintToSquare: boolean;   // New prop for hint
+  hintKey?: string; // To re-trigger hint animation
 }
 
 const Square: React.FC<SquareProps> = ({
@@ -29,8 +33,12 @@ const Square: React.FC<SquareProps> = ({
   theme,
   boardClasses,
   layoutSettings,
-  isLastMoveFromSquare, // Destructure
-  isLastMoveToSquare,   // Destructure
+  isLastMoveFromSquare,
+  isLastMoveToSquare,
+  lastMoveForFlashKey,
+  isHintFromSquare,
+  isHintToSquare,
+  hintKey,
 }) => {
   const bgColorClass = isLightSquare ? boardClasses.lightSquare : boardClasses.darkSquare;
   const selectedBgColorClass = boardClasses.selectedSquareBg;
@@ -52,7 +60,7 @@ const Square: React.FC<SquareProps> = ({
 
   const squareClasses = [
     'w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16',
-    'flex items-center justify-center relative', // Ensure relative positioning for overlay
+    'flex items-center justify-center relative rounded',
     currentBg,
     currentRing,
     'transition-all duration-150',
@@ -60,6 +68,11 @@ const Square: React.FC<SquareProps> = ({
   ].filter(Boolean).join(' ');
 
   const showLastMoveHighlight = isLastMoveFromSquare || isLastMoveToSquare;
+  const showHintHighlight = isHintFromSquare || isHintToSquare;
+
+  const flashKey = lastMoveForFlashKey 
+    ? `lm-${lastMoveForFlashKey.from.join('')}-${lastMoveForFlashKey.to.join('')}-${position.join('')}` 
+    : `initial-${position.join('')}`;
 
   return (
     <div
@@ -67,13 +80,13 @@ const Square: React.FC<SquareProps> = ({
       onClick={() => onClick(position)}
       role="button"
       tabIndex={0}
-      aria-label={`Square ${String.fromCharCode(97 + position[1])}${8 - position[0]}${squareState ? `, ${squareState.color} ${squareState.type}` : ''}${isSelected ? ', selected' : ''}${isPossibleMove ? ', possible move' : ''}${showLastMoveHighlight ? ', part of last move' : ''}`}
+      aria-label={`Square ${String.fromCharCode(97 + position[1])}${8 - position[0]}${squareState ? `, ${squareState.color} ${squareState.type}` : ''}${isSelected ? ', selected' : ''}${isPossibleMove ? ', possible move' : ''}${showLastMoveHighlight ? ', part of last move' : ''}${showHintHighlight ? ', part of hint' : ''}`}
     >
       {squareState && (
         <PieceDisplay 
           piece={squareState} 
-          pieceColorOptionId={squareState.color === PlayerColor.WHITE ? layoutSettings.whitePieceColor : layoutSettings.blackPieceColor}
-          theme={theme}
+          size="80%"
+          color={getPieceIconColor(squareState.color, theme, layoutSettings)}
         />
       )}
       {isPossibleMove && (
@@ -86,8 +99,27 @@ const Square: React.FC<SquareProps> = ({
         </div>
       )}
       {showLastMoveHighlight && (
+        <>
+          <div 
+            className={`absolute inset-0 ${boardClasses.lastMoveSquareOverlay} rounded`} 
+            aria-hidden="true"
+          ></div>
+          <div
+            className="last-move-flash"
+            key={flashKey}
+            style={{
+              '--last-move-flash-color-start': boardClasses.lastMoveFlashColorStart,
+              '--last-move-flash-color-mid': boardClasses.lastMoveFlashColorMid,
+              '--last-move-flash-color-end': boardClasses.lastMoveFlashColorEnd,
+            } as React.CSSProperties}
+            aria-hidden="true"
+          ></div>
+        </>
+      )}
+      {showHintHighlight && hintKey && (
         <div 
-          className={`absolute inset-0 ${boardClasses.lastMoveSquareOverlay}`} 
+          key={`hint-${hintKey}-${position.join('')}`} 
+          className="hint-highlight" 
           aria-hidden="true"
         ></div>
       )}

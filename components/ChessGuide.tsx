@@ -1,42 +1,42 @@
 
-
 import React from 'react';
-import { Theme, PlayerColor, PieceType } from '../types';
-import { PIECE_SYMBOLS } from '../constants';
+import { Theme, PlayerColor, PieceType, Piece, LayoutSettings } from '../types';
+import PieceDisplay from './PieceDisplay';
+import { getPieceIconColor } from '../utils/styleUtils';
+
 
 interface ChessGuideProps {
   isOpen: boolean;
   onClose: () => void;
   theme: Theme;
+  layoutSettings: LayoutSettings; // Added layoutSettings
 }
 
 interface PieceInfo {
   name: string;
-  symbol: string;
+  pieceType: PieceType; 
   description: string;
-  movement: React.ReactNode; // For visual example
+  movement: React.ReactNode; 
   special?: string;
 }
 
 const PieceMovementExample: React.FC<{ cells: string[][] }> = ({ cells }) => {
   const cellBaseClass = "w-6 h-6 sm:w-7 sm:h-7 border border-gray-400/50 dark:border-gray-600/50 flex items-center justify-center text-xs";
-  const pieceClass = "text-lg sm:text-xl";
+  const pieceExampleLetterClass = "text-lg sm:text-xl font-semibold"; 
   const moveClass = "text-green-500 dark:text-green-400 font-bold";
   const captureClass = "text-red-500 dark:text-red-400 font-bold";
 
   return (
     <div className="grid grid-cols-5 gap-0.5 my-2 bg-gray-200 dark:bg-gray-700 p-1 rounded">
       {cells.flat().map((cell, index) => {
-        let content = cell;
+        let content: React.ReactNode = cell;
         let className = cellBaseClass;
-        if (cell === 'P' || cell === 'R' || cell === 'N' || cell === 'B' || cell === 'Q' || cell === 'K') {
-          className += ` ${pieceClass} font-semibold`;
+        if (['P', 'R', 'N', 'B', 'Q', 'K'].includes(cell)) {
+          className += ` ${pieceExampleLetterClass}`;
         } else if (cell === '•') {
           className += ` ${moveClass}`;
         } else if (cell === '✕') {
             className += ` ${captureClass}`;
-        } else if (cell === '') {
-          // empty cell
         }
         const isDarkSquare = (Math.floor(index / 5) + (index % 5)) % 2 !== 0;
         className += isDarkSquare ? ' bg-gray-300 dark:bg-gray-600' : ' bg-gray-100 dark:bg-gray-500';
@@ -47,8 +47,20 @@ const PieceMovementExample: React.FC<{ cells: string[][] }> = ({ cells }) => {
   );
 };
 
+const GuidePiece: React.FC<{ type: PieceType; color: PlayerColor; theme: Theme; layoutSettings: LayoutSettings; className?: string }> = ({ type, color, theme, layoutSettings, className }) => {
+  const piece: Piece = { id: `guide-${type}`, type, color, hasMoved: false };
+  return (
+    <PieceDisplay
+      piece={piece}
+      size="1em" 
+      color={getPieceIconColor(color, theme, layoutSettings)}
+      className={`inline-block align-middle mx-px ${className || ''}`}
+    />
+  );
+};
 
-const ChessGuide: React.FC<ChessGuideProps> = ({ isOpen, onClose, theme }) => {
+
+const ChessGuide: React.FC<ChessGuideProps> = ({ isOpen, onClose, theme, layoutSettings }) => {
   if (!isOpen) return null;
 
   const modalBgClass = theme === 'dark' ? 'bg-slate-800/90 backdrop-blur-xl border-slate-700/70' : 'bg-white/90 backdrop-blur-xl border-gray-300/70';
@@ -61,13 +73,11 @@ const ChessGuide: React.FC<ChessGuideProps> = ({ isOpen, onClose, theme }) => {
   const closeButtonClass = `${buttonBase} ${theme === 'dark' ? 'bg-gradient-to-r from-red-600/90 via-rose-700/90 to-pink-700/90 hover:from-red-600/95 hover:via-rose-700/95 hover:to-pink-700/95 text-white focus-visible:ring-rose-400 shadow-rose-500/30 hover:shadow-rose-500/40' : 'bg-gradient-to-r from-red-500 via-rose-600 to-pink-600 hover:from-red-600 hover:via-rose-700 hover:to-pink-700 text-white focus-visible:ring-rose-400 shadow-rose-600/30 hover:shadow-rose-600/40'}`;
   const hrClass = `my-4 sm:my-5 ${theme === 'dark' ? 'border-slate-700' : 'border-gray-300'}`;
 
-  const whiteKingSymbol = PIECE_SYMBOLS[PlayerColor.WHITE][PieceType.KING];
-  const blackKingSymbol = PIECE_SYMBOLS[PlayerColor.BLACK][PieceType.KING];
 
   const piecesData: PieceInfo[] = [
     {
       name: 'Pawn',
-      symbol: PIECE_SYMBOLS[PlayerColor.WHITE][PieceType.PAWN],
+      pieceType: PieceType.PAWN,
       description: "Moves one square forward, but two on its first move. Captures diagonally one square forward. Cannot move backward.",
       movement: <PieceMovementExample cells={[
         ['', '', '', '', ''],
@@ -80,7 +90,7 @@ const ChessGuide: React.FC<ChessGuideProps> = ({ isOpen, onClose, theme }) => {
     },
     {
       name: 'Rook',
-      symbol: PIECE_SYMBOLS[PlayerColor.WHITE][PieceType.ROOK],
+      pieceType: PieceType.ROOK,
       description: "Moves any number of squares horizontally or vertically. Cannot jump over other pieces.",
       movement: <PieceMovementExample cells={[
         ['', '', '•', '', ''],
@@ -93,7 +103,7 @@ const ChessGuide: React.FC<ChessGuideProps> = ({ isOpen, onClose, theme }) => {
     },
     {
       name: 'Knight',
-      symbol: PIECE_SYMBOLS[PlayerColor.WHITE][PieceType.KNIGHT],
+      pieceType: PieceType.KNIGHT,
       description: "Moves in an 'L' shape: two squares in one direction (horizontal or vertical) and then one square perpendicular. It's the only piece that can jump over other pieces.",
       movement: <PieceMovementExample cells={[
         ['', '•', '', '•', ''],
@@ -105,7 +115,7 @@ const ChessGuide: React.FC<ChessGuideProps> = ({ isOpen, onClose, theme }) => {
     },
     {
       name: 'Bishop',
-      symbol: PIECE_SYMBOLS[PlayerColor.WHITE][PieceType.BISHOP],
+      pieceType: PieceType.BISHOP,
       description: "Moves any number of squares diagonally. Each bishop stays on squares of one color (light or dark). Cannot jump over other pieces.",
       movement: <PieceMovementExample cells={[
         ['•', '', '', '', '•'],
@@ -117,7 +127,7 @@ const ChessGuide: React.FC<ChessGuideProps> = ({ isOpen, onClose, theme }) => {
     },
     {
       name: 'Queen',
-      symbol: PIECE_SYMBOLS[PlayerColor.WHITE][PieceType.QUEEN],
+      pieceType: PieceType.QUEEN,
       description: "The most powerful piece. Moves any number of squares horizontally, vertically, or diagonally. Cannot jump over other pieces.",
       movement: <PieceMovementExample cells={[
         ['•', '', '•', '', '•'],
@@ -129,7 +139,7 @@ const ChessGuide: React.FC<ChessGuideProps> = ({ isOpen, onClose, theme }) => {
     },
     {
       name: 'King',
-      symbol: whiteKingSymbol,
+      pieceType: PieceType.KING,
       description: "Moves one square in any direction (horizontally, vertically, or diagonally). The King is the most important piece; if it's trapped (checkmate), the game is over.",
       movement: <PieceMovementExample cells={[
         ['', '', '', '', ''],
@@ -175,7 +185,13 @@ const ChessGuide: React.FC<ChessGuideProps> = ({ isOpen, onClose, theme }) => {
           
           {renderSection("Board Setup", 
             <>
-              The game is played on an 8x8 grid of alternating light and dark squares. Each player starts with 16 pieces: 1 King ({whiteKingSymbol}), 1 Queen (♕), 2 Rooks (♖), 2 Bishops (♗), 2 Knights (♘), and 8 Pawns (♙).
+              The game is played on an 8x8 grid of alternating light and dark squares. Each player starts with 16 pieces: 
+              1 King (<GuidePiece type={PieceType.KING} color={PlayerColor.WHITE} theme={theme} layoutSettings={layoutSettings} />), 
+              1 Queen (<GuidePiece type={PieceType.QUEEN} color={PlayerColor.WHITE} theme={theme} layoutSettings={layoutSettings} />), 
+              2 Rooks (<GuidePiece type={PieceType.ROOK} color={PlayerColor.WHITE} theme={theme} layoutSettings={layoutSettings} />), 
+              2 Bishops (<GuidePiece type={PieceType.BISHOP} color={PlayerColor.WHITE} theme={theme} layoutSettings={layoutSettings} />), 
+              2 Knights (<GuidePiece type={PieceType.KNIGHT} color={PlayerColor.WHITE} theme={theme} layoutSettings={layoutSettings} />), 
+              and 8 Pawns (<GuidePiece type={PieceType.PAWN} color={PlayerColor.WHITE} theme={theme} layoutSettings={layoutSettings} />).
               White always moves first. The board is set up so that each player has a light-colored square at their bottom-right corner. The Queen always starts on a square of her own color.
             </>
           )}
@@ -183,14 +199,15 @@ const ChessGuide: React.FC<ChessGuideProps> = ({ isOpen, onClose, theme }) => {
           <hr className={hrClass} />
           
           <h3 className={`text-lg sm:text-xl font-semibold mb-3 ${sectionTitleColorClass}`}>Piece Movements</h3>
-          {piecesData.map(piece => (
-            <div key={piece.name} className="mb-4">
+          {piecesData.map(pieceInfo => (
+            <div key={pieceInfo.name} className="mb-4">
               <h4 className={`text-md sm:text-lg font-semibold ${strongTextColor}`}>
-                <span className="text-xl sm:text-2xl mr-1.5 guide-piece-example">{piece.symbol}</span>{piece.name}
+                <GuidePiece type={pieceInfo.pieceType} color={PlayerColor.WHITE} theme={theme} layoutSettings={layoutSettings} className="mr-1.5 text-lg" />
+                {pieceInfo.name}
               </h4>
-              <p className={`my-1 ${textColorClass}`}>{piece.description}</p>
-              {piece.movement}
-              {piece.special && <p className={`mt-1 text-xs sm:text-sm ${textColorClass}`}><strong className={strongTextColor}>Special:</strong> {piece.special}</p>}
+              <p className={`my-1 ${textColorClass}`}>{pieceInfo.description}</p>
+              {pieceInfo.movement}
+              {pieceInfo.special && <p className={`mt-1 text-xs sm:text-sm ${textColorClass}`}><strong className={strongTextColor}>Special:</strong> {pieceInfo.special}</p>}
             </div>
           ))}
 

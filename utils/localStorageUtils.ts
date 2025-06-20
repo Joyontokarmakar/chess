@@ -54,7 +54,6 @@ export function saveHallOfFameEntry(
 ): void {
   if (!mode || mode === 'online') { 
       // For 'online' (same-device sim), we could save HoF entries if desired.
-      // The original check was for Firestore-based online. We can enable it.
   }
 
   const newEntry: HallOfFameEntry = {
@@ -108,7 +107,6 @@ export function setOnlineGameState(gameId: string, gameState: OnlineGameState): 
     localStorage.setItem(getOnlineGameStorageKey(gameId), JSON.stringify(gameState));
   } catch (error) {
     console.error(`Error saving online game state for ${gameId}:`, error);
-    // Potentially handle quota exceeded errors more gracefully if needed
   }
 }
 
@@ -126,7 +124,7 @@ export function getSavedGames(): SavedGame[] {
     const savedGamesJson = localStorage.getItem(SAVED_GAMES_KEY);
     if (savedGamesJson) {
       const games = JSON.parse(savedGamesJson) as SavedGame[];
-      return games.sort((a,b) => b.timestamp - a.timestamp); // Newest first by save time
+      return games.sort((a,b) => b.timestamp - a.timestamp); 
     }
   } catch (error) {
     console.error("Error retrieving saved games:", error);
@@ -172,12 +170,18 @@ export function getLayoutSettings(): LayoutSettings | null {
   try {
     const settingsJson = localStorage.getItem(LAYOUT_SETTINGS_KEY);
     if (settingsJson) {
-      return JSON.parse(settingsJson) as LayoutSettings;
+      const parsed = JSON.parse(settingsJson) as Partial<LayoutSettings>; // Partial for backward compatibility
+      return {
+        boardStyleId: parsed.boardStyleId || 'default-dark', // Default if missing
+        whitePieceColor: parsed.whitePieceColor,
+        blackPieceColor: parsed.blackPieceColor,
+        isSoundEnabled: typeof parsed.isSoundEnabled === 'boolean' ? parsed.isSoundEnabled : true, // Default to true
+      };
     }
   } catch (error) {
     console.error("Error retrieving layout settings:", error);
   }
-  return null;
+  return null; // Return null if no settings found, App.tsx will provide defaults
 }
 
 export function setLayoutSettings(settings: LayoutSettings): void {

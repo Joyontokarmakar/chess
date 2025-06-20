@@ -14,18 +14,12 @@
       --text-light: #F3F4F6; /* slate-100 */
       --text-dark: #1F2937; /* gray-800 */
       
-      --piece-shadow-light-text: rgba(0,0,0,0.2);
-      --piece-shadow-light-color: rgba(0,0,0,0.1);
-      --piece-shadow-dark-text: rgba(255,255,255,0.2);
-      --piece-shadow-dark-color: rgba(255,255,255,0.1);
-
-      --piece-hover-shadow-light-text: rgba(0,0,0,0.3);
-      --piece-hover-shadow-light-color: currentColor; /* Will be piece color */
-      --piece-hover-shadow-dark-text: rgba(255,255,255,0.4);
-      --piece-hover-shadow-dark-color: currentColor; /* Will be piece color */
-
       --king-check-pulse-light: rgba(239, 68, 68, 0.7); /* red-500 */
       --king-check-pulse-dark: rgba(255, 20, 20, 0.9);
+
+      /* Hint Highlight Colors */
+      --hint-highlight-color-light: rgba(56, 189, 248, 0.7); /* sky-500 */
+      --hint-highlight-color-dark: rgba(59, 130, 246, 0.7);  /* blue-500 */
     }
 
     body { 
@@ -42,75 +36,6 @@
       background: var(--body-bg-dark);
       color: var(--text-light);
     }
-
-    .chess-piece {
-      font-size: 2.3rem;
-      line-height: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      height: 100%;
-      cursor: pointer;
-      transition: transform 0.15s ease-in-out, text-shadow 0.15s ease-in-out;
-    }
-    body.theme-light .chess-piece {
-      text-shadow: 0 0 0.05em var(--piece-shadow-light-text), 0.02em 0.02em 0.05em var(--piece-shadow-light-color);
-    }
-    body.theme-dark .chess-piece {
-      text-shadow: 0 0 0.1em var(--piece-shadow-dark-text), 0.03em 0.03em 0.08em var(--piece-shadow-dark-color);
-    }
-
-    .chess-piece:hover {
-        transform: scale(1.15);
-    }
-    body.theme-light .chess-piece:hover {
-        text-shadow: 0 0 0.15em var(--piece-hover-shadow-light-text), 0 0 0.3em var(--piece-hover-shadow-light-color), 0.02em 0.02em 0.05em rgba(0,0,0,0.3);
-    }
-    body.theme-dark .chess-piece:hover {
-        text-shadow: 0 0 0.25em var(--piece-hover-shadow-dark-text), 0 0 0.5em var(--piece-hover-shadow-dark-color), 0.03em 0.03em 0.08em rgba(0,0,0,0.5);
-    }
-
-    /* Reduced font size for captured pieces */
-    .captured-piece .chess-piece {
-        font-size: 0.9rem !important; 
-        cursor: default;
-    }
-    body.theme-light .captured-piece .chess-piece {
-        text-shadow: 0 0 0.03em rgba(0,0,0,0.15), 0.01em 0.01em 0.02em rgba(0,0,0,0.3) !important;
-    }
-    body.theme-dark .captured-piece .chess-piece {
-        text-shadow: 0 0 0.05em rgba(255,255,255,0.15), 0.02em 0.02em 0.04em rgba(0,0,0,0.4) !important;
-    }
-    .captured-piece .chess-piece:hover { transform: none; }
-    body.theme-light .captured-piece .chess-piece:hover { text-shadow: 0 0 0.03em rgba(0,0,0,0.15), 0.01em 0.01em 0.02em rgba(0,0,0,0.3) !important; }
-    body.theme-dark .captured-piece .chess-piece:hover { text-shadow: 0 0 0.05em rgba(255,255,255,0.15), 0.02em 0.02em 0.04em rgba(0,0,0,0.4) !important; }
-    
-    /* Reduced font size for player avatar */
-    .player-avatar .chess-piece {
-        font-size: 1.8rem !important; 
-    }
-    body.theme-light .player-avatar .chess-piece {
-        text-shadow: 0 0 0.1em rgba(0,0,0,0.15), 0.03em 0.03em 0.07em rgba(0,0,0,0.3) !important;
-    }
-    body.theme-dark .player-avatar .chess-piece {
-        text-shadow: 0 0 0.15em rgba(255,255,255,0.2), 0.04em 0.04em 0.1em rgba(0,0,0,0.4) !important;
-    }
-
-    @media (min-width: 640px) { /* sm breakpoint */
-      .chess-piece { font-size: 2.6rem; }
-      /* Reduced font size for captured pieces - sm */
-      .captured-piece .chess-piece { font-size: 1.0rem !important; }
-      /* Reduced font size for player avatar - sm */
-      .player-avatar .chess-piece { font-size: 2.0rem !important; }
-    }
-    @media (min-width: 768px) { /* md breakpoint */
-      .chess-piece { font-size: 3rem; }
-      /* Reduced font size for captured pieces - md */
-      .captured-piece .chess-piece { font-size: 1.1rem !important; }
-      /* Reduced font size for player avatar - md */
-      .player-avatar .chess-piece { font-size: 2.2rem !important; }
-    }
     
     .king-check-pulse { animation: pulse-glow-border 1.5s infinite; }
     @keyframes pulse-glow-border {
@@ -119,7 +44,7 @@
     }
     body.theme-light .king-check-pulse {
         --border-color: var(--king-check-pulse-light);
-        --shadow-color-pulse: rgba(239, 68, 68, 0.1); /* Lighter pulse for light theme */
+        --shadow-color-pulse: rgba(239, 68, 68, 0.1); 
     }
     body.theme-dark .king-check-pulse {
         --border-color: var(--king-check-pulse-dark);
@@ -167,14 +92,58 @@
     .theme-switch-label .theme-switch-icon:last-child {
       color: #A78BFA; /* violet-400 for moon */
     }
-
-    /* For Chess Guide piece examples */
-    .guide-piece-example {
-        font-size: 1.75rem !important; /* Larger than normal text, but not as big as board pieces */
-        /* You can add text-shadow here if desired, similar to .chess-piece but perhaps more subtle */
+    
+    .chess-icon-display {
+        display: inline-flex; 
+        align-items: center;
+        justify-content: center;
+        vertical-align: middle; 
     }
-    @media (min-width: 640px) { /* sm breakpoint */
-      .guide-piece-example { font-size: 1.85rem !important; }
+
+    /* Last Move Flash Animation */
+    .last-move-flash {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      border-radius: inherit; 
+      animation: last-move-pulse 0.7s ease-out forwards;
+      pointer-events: none; 
+    }
+
+    @keyframes last-move-pulse {
+      0% { 
+        box-shadow: inset 0 0 0 0px var(--last-move-flash-color-start, rgba(255, 255, 0, 0)); 
+        opacity: 0.5; 
+      }
+      50% { 
+        box-shadow: inset 0 0 0 3px var(--last-move-flash-color-mid, rgba(255, 255, 0, 0.9));
+        opacity: 1; 
+      }
+      100% { 
+        box-shadow: inset 0 0 0 0px var(--last-move-flash-color-end, rgba(255, 255, 0, 0)); 
+        opacity: 0; 
+      }
+    }
+
+    /* Hint Highlight Animation */
+    .hint-highlight {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      border-radius: inherit;
+      animation: hint-pulse 1.2s ease-in-out forwards;
+      pointer-events: none;
+      box-shadow: inset 0 0 0 3px var(--hint-color, var(--hint-highlight-color-light));
+    }
+    body.theme-dark .hint-highlight {
+      --hint-color: var(--hint-highlight-color-dark);
+    }
+    body.theme-light .hint-highlight {
+      --hint-color: var(--hint-highlight-color-light);
+    }
+
+    @keyframes hint-pulse {
+      0% { opacity: 0.7; transform: scale(0.98); }
+      50% { opacity: 1; transform: scale(1.02); }
+      100% { opacity: 0; transform: scale(1); }
     }
 
   </style>
@@ -185,7 +154,9 @@
     "react/": "https://esm.sh/react@^19.1.0/",
     "react": "https://esm.sh/react@^19.1.0",
     "@google/genai": "https://esm.sh/@google/genai",
-    "firebase/": "https://esm.sh/firebase@^11.9.1/"
+    "firebase/": "https://esm.sh/firebase@^11.9.1/",
+    "react-icons/fa": "https://esm.sh/react-icons/fa?pin=v6",
+    "react-icons/": "https://esm.sh/react-icons@^5.5.0/"
   }
 }
 </script>

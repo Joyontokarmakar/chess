@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { SavedGame, Theme } from '../types';
 
@@ -6,7 +7,7 @@ interface SavedGamesListProps {
   onLoadGame: (gameId: string) => void;
   onDeleteGame: (gameId: string) => void;
   onClearAll: () => void;
-  onBack: () => void;
+  onBack: () => void; // This is used by MenuModal to switch view, title is now handled by MenuModal
   theme: Theme;
 }
 
@@ -18,7 +19,8 @@ const SavedGamesList: React.FC<SavedGamesListProps> = ({
   onBack,
   theme,
 }) => {
-  const titleColorClass = theme === 'dark' ? 'text-slate-100' : 'text-slate-800';
+  // Title is now handled by MenuModal's dynamic header
+  // const titleColorClass = theme === 'dark' ? 'text-slate-100' : 'text-slate-800';
   const itemBgClass = theme === 'dark' ? 'bg-slate-700/70 border-slate-600/60' : 'bg-gray-100/80 border-gray-300/70';
   const itemHoverBgClass = theme === 'dark' ? 'hover:bg-slate-600/80' : 'hover:bg-gray-200/90';
   const textColorClass = theme === 'dark' ? 'text-slate-300' : 'text-slate-700';
@@ -29,14 +31,17 @@ const SavedGamesList: React.FC<SavedGamesListProps> = ({
   const deleteButtonClass = `${buttonBase} ${theme === 'dark' ? 'bg-red-700/90 hover:bg-red-600/95 text-white focus-visible:ring-red-500' : 'bg-red-600 hover:bg-red-700 text-white focus-visible:ring-red-400'}`;
   const clearAllButtonClass = `${buttonBase} w-full mt-3 sm:w-auto ${theme === 'dark' ? 'bg-rose-700/90 hover:bg-rose-600/95 text-white focus-visible:ring-rose-500' : 'bg-rose-600 hover:bg-rose-700 text-white focus-visible:ring-rose-400'}`;
   const backButtonClass = `${buttonBase} w-full mt-3 sm:w-auto ${theme === 'dark' ? 'bg-slate-600/80 hover:bg-slate-500/90 text-slate-200 focus-visible:ring-slate-400' : 'bg-gray-300/90 hover:bg-gray-400/95 text-slate-700 focus-visible:ring-gray-500'}`;
+  const scrollbarStyles = theme === 'dark' ? 'scrollbar-thumb-slate-600 scrollbar-track-slate-700/50' : 'scrollbar-thumb-gray-400 scrollbar-track-gray-200/50';
 
   return (
     <div className="w-full">
-      <h3 className={`text-xl sm:text-2xl font-bold mb-4 text-center ${titleColorClass}`}>Saved Games</h3>
+      {/* Title is now part of the MenuModal's dynamic header 
+        <h3 className={`text-xl sm:text-2xl font-bold mb-4 text-center ${titleColorClass}`}>Saved Games</h3> 
+      */}
       {savedGames.length === 0 ? (
         <p className={`text-center my-6 ${textColorClass}`}>No games saved yet.</p>
       ) : (
-        <ul className={`space-y-3 max-h-60 sm:max-h-72 overflow-y-auto pr-2 pb-2 -mr-2 scrollbar-thin scrollbar-thumb-rounded-full ${theme === 'dark' ? 'scrollbar-thumb-slate-600 scrollbar-track-slate-700/50' : 'scrollbar-thumb-gray-400 scrollbar-track-gray-200/50'}`}>
+        <ul className={`space-y-3 max-h-60 sm:max-h-72 overflow-y-auto pr-2 pb-2 scrollbar-thin scrollbar-thumb-rounded-full ${scrollbarStyles}`}>
           {savedGames.map((game) => (
             <li
               key={game.id}

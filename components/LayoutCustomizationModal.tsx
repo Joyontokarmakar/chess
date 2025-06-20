@@ -1,7 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
-import { Theme, LayoutSettings, BoardStyleId, PieceColorOption, Piece, PieceType, PlayerColor } from '../types';
-import { BOARD_STYLE_CONFIG, PIECE_COLOR_CONFIG, PIECE_SYMBOLS } from '../constants';
-import PieceDisplay from './PieceDisplay'; // To display example pieces in swatches
+import { Theme, LayoutSettings, BoardStyleId, Piece, PieceType, PlayerColor } from '../types';
+import { BOARD_STYLE_CONFIG } from '../constants';
+import PieceDisplay from './PieceDisplay'; 
+import { getPieceIconColor } from '../utils/styleUtils';
+
 
 interface LayoutCustomizationModalProps {
   isOpen: boolean;
@@ -12,18 +15,14 @@ interface LayoutCustomizationModalProps {
 }
 
 // Helper to format IDs into user-friendly labels
-function formatOptionLabel(id: string, type: 'board' | 'piece' = 'board'): string {
+function formatOptionLabel(id: string): string {
   let label = id.replace(/-/g, ' ');
-  if (type === 'piece') {
-    label = label.replace(/^(white|black)\s/, ''); // Remove "white " or "black " prefix for piece colors
-  }
   return label
     .split(' ')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 }
 
-// Curated list of board styles for radio buttons
 const CURATED_BOARD_STYLES: { id: BoardStyleId; label: string }[] = [
   { id: 'default-dark', label: 'Default Dark' },
   { id: 'default-light', label: 'Default Light' },
@@ -32,21 +31,37 @@ const CURATED_BOARD_STYLES: { id: BoardStyleId; label: string }[] = [
   { id: 'forest-green', label: 'Forest Green' },
 ];
 
-// Curated list of piece colors for swatches
-const CURATED_PIECE_COLOR_OPTIONS_IDS_WHITE: PieceColorOption[] = [
-  'white-theme-default', 'white-classic-white', 'white-fiery-red', 'white-golden-yellow', 'white-deep-blue', 'white-silver-gray', 'white-emerald-green'
-];
-const CURATED_PIECE_COLOR_OPTIONS_IDS_BLACK: PieceColorOption[] = [
-  'black-theme-default', 'black-classic-black', 'black-fiery-red', 'black-golden-yellow', 'black-deep-blue', 'black-silver-gray', 'black-emerald-green'
+interface ColorOption {
+  id: string; 
+  label: string;
+  value: string; // Hex color string
+}
+
+// Sober piece color options
+const WHITE_PIECE_COLOR_OPTIONS: ColorOption[] = [
+  { id: 'default-white-dark-theme', label: 'Default (Dark Theme)', value: '#D1D5DB' }, // gray-300 (new default)
+  { id: 'default-white-light-theme', label: 'Default (Light Theme)', value: '#F3F4F6' }, // gray-100 (new default)
+  { id: 'classic-ivory', label: 'Ivory', value: '#F5F5DC' },
+  { id: 'silver-mist', label: 'Silver Mist', value: '#C0C0C0' },
+  { id: 'light-slate', label: 'Light Slate', value: '#B0C4DE' }, // Was sky-blue
+  { id: 'pale-gold', label: 'Pale Gold', value: '#E6BE8A' },   // Was golden-sand
 ];
 
-// Helper to extract the primary background class from a Tailwind string
+const BLACK_PIECE_COLOR_OPTIONS: ColorOption[] = [
+  { id: 'default-black-dark-theme', label: 'Default (Dark Theme)', value: '#4B5563' }, // gray-600 (new default)
+  { id: 'default-black-light-theme', label: 'Default (Light Theme)', value: '#374151' }, // gray-700 (new default)
+  { id: 'classic-ebony', label: 'Ebony', value: '#555D50' },
+  { id: 'charcoal-gray', label: 'Charcoal', value: '#36454F' },
+  { id: 'dark-slate-blue', label: 'Dark Slate Blue', value: '#483D8B' }, // Was deep-ocean
+  { id: 'olive-drab', label: 'Olive Drab', value: '#6B8E23' },      // Was forest-shadow
+];
+
+
 const extractBgClass = (classes: string | undefined): string => {
   if (!classes) return 'bg-transparent';
-  // Regex to find 'bg-color-opacity' or 'bg-color'
   const bgRegex = /\b(bg-([a-zA-Z0-9-]+)(-\d+)?(\/\d+)?)\b/;
   const match = classes.match(bgRegex);
-  return match ? match[1] : 'bg-transparent'; // Return matched bg class or transparent
+  return match ? match[1] : 'bg-transparent'; 
 };
 
 
@@ -58,8 +73,8 @@ const LayoutCustomizationModal: React.FC<LayoutCustomizationModalProps> = ({
   theme,
 }) => {
   const [selectedBoardStyle, setSelectedBoardStyle] = useState<BoardStyleId>(currentSettings.boardStyleId);
-  const [selectedWhitePieceColor, setSelectedWhitePieceColor] = useState<PieceColorOption>(currentSettings.whitePieceColor);
-  const [selectedBlackPieceColor, setSelectedBlackPieceColor] = useState<PieceColorOption>(currentSettings.blackPieceColor);
+  const [selectedWhitePieceColor, setSelectedWhitePieceColor] = useState<string | undefined>(currentSettings.whitePieceColor);
+  const [selectedBlackPieceColor, setSelectedBlackPieceColor] = useState<string | undefined>(currentSettings.blackPieceColor);
 
   useEffect(() => {
     if (isOpen) {
@@ -78,10 +93,10 @@ const LayoutCustomizationModal: React.FC<LayoutCustomizationModalProps> = ({
       boardStyleId: selectedBoardStyle,
       whitePieceColor: selectedWhitePieceColor,
       blackPieceColor: selectedBlackPieceColor,
+      isSoundEnabled: currentSettings.isSoundEnabled, // Ensure isSoundEnabled is passed
     });
   };
 
-  // Theme-aware styling classes
   const modalBgClass = theme === 'dark' ? 'bg-slate-700/60 backdrop-blur-2xl border-slate-600/50' : 'bg-white/70 backdrop-blur-2xl border-gray-300/50';
   const titleColorClass = theme === 'dark' ? 'text-slate-100' : 'text-slate-800';
   const labelColorClass = theme === 'dark' ? 'text-slate-300' : 'text-slate-700';
@@ -91,27 +106,16 @@ const LayoutCustomizationModal: React.FC<LayoutCustomizationModalProps> = ({
     theme === 'dark' ? 'border-slate-500 bg-slate-700 focus:ring-sky-400 focus:ring-offset-slate-700 accent-sky-400' 
                      : 'border-gray-400 bg-gray-100 focus:ring-sky-500 focus:ring-offset-white accent-sky-500'
   }`;
-  
-  const swatchButtonBase = `w-10 h-10 sm:w-11 sm:h-11 rounded-lg border-2 flex items-center justify-center cursor-pointer transition-all duration-150 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 backdrop-blur-sm`;
-  const getSwatchButtonClasses = (isSelected: boolean) => {
-    let classes = swatchButtonBase;
-    if (theme === 'dark') {
-      classes += isSelected ? ' border-sky-400 ring-2 ring-sky-300 ring-offset-slate-700 bg-slate-600/50' 
-                            : ' border-slate-500/70 bg-slate-700/40 hover:border-slate-400';
-    } else {
-      classes += isSelected ? ' border-sky-500 ring-2 ring-sky-600 ring-offset-white bg-gray-50/50' 
-                            : ' border-gray-400/70 bg-gray-100/40 hover:border-gray-500';
-    }
-    return classes;
-  };
-  
+    
   const buttonBase = `w-full sm:w-auto font-semibold py-3 px-6 rounded-lg text-base shadow-lg hover:shadow-xl transition-all duration-200 ease-in-out transform hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-opacity-75`;
   const applyButtonClass = `${buttonBase} ${theme === 'dark' ? 'bg-gradient-to-r from-green-500/90 via-emerald-600/90 to-teal-600/90 hover:from-green-500/95 hover:via-emerald-600/95 hover:to-teal-600/95 text-white focus-visible:ring-emerald-400 shadow-emerald-500/30 hover:shadow-emerald-500/40' : 'bg-gradient-to-r from-green-500 via-emerald-600 to-teal-600 hover:from-green-600 hover:via-emerald-700 hover:to-teal-700 text-white focus-visible:ring-emerald-400 shadow-emerald-600/30 hover:shadow-emerald-600/40'}`;
   const cancelButtonClass = `${buttonBase} ${theme === 'dark' ? 'bg-slate-600/80 hover:bg-slate-500/90 text-slate-200 border border-slate-500/70 focus-visible:ring-slate-400' : 'bg-gray-300/90 hover:bg-gray-400/95 text-slate-700 border border-gray-400/70 focus-visible:ring-gray-500'}`;
   const overlayBgClass = theme === 'dark' ? 'bg-black/80 backdrop-blur-xl' : 'bg-black/60 backdrop-blur-lg';
+  const hrClass = `my-3 sm:my-4 ${theme === 'dark' ? 'border-slate-600/50' : 'border-gray-300/50'}`;
 
-  const exampleWhiteKing: Piece = { id: 'exWk', type: PieceType.KING, color: PlayerColor.WHITE, hasMoved: false };
-  const exampleBlackKing: Piece = { id: 'exBk', type: PieceType.KING, color: PlayerColor.BLACK, hasMoved: false };
+  const kingPieceWhite: Piece = { id: 'preview-white-king', type: PieceType.KING, color: PlayerColor.WHITE, hasMoved: false };
+  const kingPieceBlack: Piece = { id: 'preview-black-king', type: PieceType.KING, color: PlayerColor.BLACK, hasMoved: false };
+
 
   return (
     <div className={`fixed inset-0 ${overlayBgClass} flex items-center justify-center z-[60] p-4`} onClick={onClose}>
@@ -134,7 +138,7 @@ const LayoutCustomizationModal: React.FC<LayoutCustomizationModalProps> = ({
             </button>
         </div>
 
-        <div className="flex-grow overflow-y-auto space-y-5 sm:space-y-6 pr-2 -mr-2 scrollbar-thin scrollbar-thumb-rounded-full ${theme === 'dark' ? 'scrollbar-thumb-slate-600 scrollbar-track-slate-700/50' : 'scrollbar-thumb-gray-400 scrollbar-track-gray-200/50'}">
+        <div className={`flex-grow overflow-y-auto space-y-5 sm:space-y-6 pr-2 -mr-2 scrollbar-thin scrollbar-thumb-rounded-full ${theme === 'dark' ? 'scrollbar-thumb-slate-600 scrollbar-track-slate-700/50' : 'scrollbar-thumb-gray-400 scrollbar-track-gray-200/50'}`}>
           {/* Board Style Selection */}
           <fieldset>
             <legend className={`text-md sm:text-lg font-semibold mb-2.5 ${sectionTitleColorClass}`}>Board Style</legend>
@@ -159,49 +163,95 @@ const LayoutCustomizationModal: React.FC<LayoutCustomizationModalProps> = ({
                             <div className={`w-5 h-5 rounded-sm border ${previewSwatchBorder} ${lightSquareBg}`}></div>
                             <div className={`w-5 h-5 rounded-sm border ${previewSwatchBorder} ${darkSquareBg}`}></div>
                         </div>
-                        <span className={`${labelColorClass} text-sm`}>{style.label}</span>
+                        <span className={`${labelColorClass} text-sm`}>{formatOptionLabel(style.id)}</span>
                     </label>
                 );
               })}
             </div>
           </fieldset>
 
+          <hr className={hrClass} />
+
           {/* White Piece Color Selection */}
           <fieldset>
-            <legend className={`text-md sm:text-lg font-semibold mb-2.5 ${sectionTitleColorClass}`}>White Pieces Color</legend>
-            <div className="flex flex-wrap gap-2.5 sm:gap-3 items-center">
-              {CURATED_PIECE_COLOR_OPTIONS_IDS_WHITE.map(optionId => (
+            <div className="flex items-center justify-between mb-2.5">
+                <legend className={`text-md sm:text-lg font-semibold ${sectionTitleColorClass}`}>White Piece Color</legend>
+                <PieceDisplay 
+                    piece={kingPieceWhite} 
+                    size="24px" 
+                    color={getPieceIconColor(PlayerColor.WHITE, theme, { boardStyleId: selectedBoardStyle, whitePieceColor: selectedWhitePieceColor, isSoundEnabled: currentSettings.isSoundEnabled })} 
+                />
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              {WHITE_PIECE_COLOR_OPTIONS.map(option => (
                 <button
-                  key={optionId}
+                  key={option.id}
                   type="button"
-                  onClick={() => setSelectedWhitePieceColor(optionId)}
-                  className={getSwatchButtonClasses(selectedWhitePieceColor === optionId)}
-                  aria-label={`Select ${formatOptionLabel(optionId, 'piece')} for White Pieces`}
-                  title={formatOptionLabel(optionId, 'piece')}
+                  onClick={() => setSelectedWhitePieceColor(option.value)}
+                  className={`p-2 rounded-md border-2 text-sm transition-all duration-150
+                              ${selectedWhitePieceColor === option.value 
+                                ? (theme === 'dark' ? 'border-sky-400 ring-2 ring-sky-400 ring-offset-2 ring-offset-slate-700' : 'border-sky-500 ring-2 ring-sky-500 ring-offset-2 ring-offset-white')
+                                : (theme === 'dark' ? 'border-slate-500 hover:border-slate-400' : 'border-gray-400 hover:border-gray-500')}
+                              ${theme === 'dark' ? 'bg-slate-600/50 hover:bg-slate-500/60' : 'bg-gray-100/70 hover:bg-gray-200/80'}`}
+                  aria-pressed={selectedWhitePieceColor === option.value}
+                  title={option.label}
                 >
-                  <PieceDisplay piece={exampleWhiteKing} pieceColorOptionId={optionId} theme={theme} className="text-xl sm:text-2xl" />
+                  <div className="flex items-center space-x-2">
+                    <span style={{ backgroundColor: option.value }} className="w-4 h-4 rounded-full border border-gray-400/50"></span>
+                    <span className={labelColorClass}>{option.label}</span>
+                  </div>
                 </button>
               ))}
             </div>
+             <button
+                type="button"
+                onClick={() => setSelectedWhitePieceColor(undefined)}
+                className={`mt-2.5 text-xs py-1 px-3 rounded-md ${theme === 'dark' ? 'text-slate-400 hover:text-slate-300 bg-slate-600 hover:bg-slate-500' : 'text-slate-500 hover:text-slate-700 bg-gray-200 hover:bg-gray-300'}`}
+             >
+                Use Theme Default (Overall)
+            </button>
           </fieldset>
+          
+          <hr className={hrClass} />
 
           {/* Black Piece Color Selection */}
           <fieldset>
-            <legend className={`text-md sm:text-lg font-semibold mb-2.5 ${sectionTitleColorClass}`}>Black Pieces Color</legend>
-            <div className="flex flex-wrap gap-2.5 sm:gap-3 items-center">
-              {CURATED_PIECE_COLOR_OPTIONS_IDS_BLACK.map(optionId => (
+            <div className="flex items-center justify-between mb-2.5">
+                <legend className={`text-md sm:text-lg font-semibold ${sectionTitleColorClass}`}>Black Piece Color</legend>
+                 <PieceDisplay 
+                    piece={kingPieceBlack} 
+                    size="24px" 
+                    color={getPieceIconColor(PlayerColor.BLACK, theme, { boardStyleId: selectedBoardStyle, blackPieceColor: selectedBlackPieceColor, isSoundEnabled: currentSettings.isSoundEnabled })}
+                />
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              {BLACK_PIECE_COLOR_OPTIONS.map(option => (
                 <button
-                  key={optionId}
+                  key={option.id}
                   type="button"
-                  onClick={() => setSelectedBlackPieceColor(optionId)}
-                  className={getSwatchButtonClasses(selectedBlackPieceColor === optionId)}
-                  aria-label={`Select ${formatOptionLabel(optionId, 'piece')} for Black Pieces`}
-                  title={formatOptionLabel(optionId, 'piece')}
+                  onClick={() => setSelectedBlackPieceColor(option.value)}
+                  className={`p-2 rounded-md border-2 text-sm transition-all duration-150
+                              ${selectedBlackPieceColor === option.value 
+                                ? (theme === 'dark' ? 'border-sky-400 ring-2 ring-sky-400 ring-offset-2 ring-offset-slate-700' : 'border-sky-500 ring-2 ring-sky-500 ring-offset-2 ring-offset-white')
+                                : (theme === 'dark' ? 'border-slate-500 hover:border-slate-400' : 'border-gray-400 hover:border-gray-500')}
+                              ${theme === 'dark' ? 'bg-slate-600/50 hover:bg-slate-500/60' : 'bg-gray-100/70 hover:bg-gray-200/80'}`}
+                  aria-pressed={selectedBlackPieceColor === option.value}
+                  title={option.label}
                 >
-                  <PieceDisplay piece={exampleBlackKing} pieceColorOptionId={optionId} theme={theme} className="text-xl sm:text-2xl" />
+                  <div className="flex items-center space-x-2">
+                    <span style={{ backgroundColor: option.value }} className="w-4 h-4 rounded-full border border-gray-400/50"></span>
+                    <span className={labelColorClass}>{option.label}</span>
+                  </div>
                 </button>
               ))}
             </div>
+            <button
+                type="button"
+                onClick={() => setSelectedBlackPieceColor(undefined)}
+                className={`mt-2.5 text-xs py-1 px-3 rounded-md ${theme === 'dark' ? 'text-slate-400 hover:text-slate-300 bg-slate-600 hover:bg-slate-500' : 'text-slate-500 hover:text-slate-700 bg-gray-200 hover:bg-gray-300'}`}
+             >
+                Use Theme Default (Overall)
+            </button>
           </fieldset>
         </div>
 

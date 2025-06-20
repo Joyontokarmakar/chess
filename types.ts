@@ -46,7 +46,7 @@ export interface MakeMoveResult {
   capturedPiece: Piece | null;
 }
 
-export type GameMode = 'friend' | 'computer' | 'online' | 'loaded_friend' | null;
+export type GameMode = 'friend' | 'computer' | 'online' | 'loaded_friend' | 'puzzle' | null;
 
 export interface AIMove {
   from: Position;
@@ -77,21 +77,27 @@ export interface OnlineGameState {
   isGameReady: boolean; // True when player 2 has joined
   lastMoveBy: PlayerColor | null; // Tracks who made the last move to avoid self-updates from storage events
   kingInCheckPosition: Position | null;
-  // Timer related state for online games (can be enhanced for full sync later)
   timeLimitPerPlayer: number | null;
   player1TimeLeft: number | null;
   player2TimeLeft: number | null;
   gameStartTimeStamp: number | null;
-  lastMove?: { from: Position; to: Position } | null; // Added for online state sync if needed
+  lastMove?: { from: Position; to: Position } | null;
 }
 
 export type Theme = 'light' | 'dark';
 
+export enum AIDifficultyLevel {
+  EASY = 'Easy',
+  MEDIUM = 'Medium',
+  HARD = 'Hard',
+  GRANDMASTER = 'Grandmaster',
+}
+
 export interface SavedGame {
-  id: string; // Unique ID, typically timestamp-based
-  name: string; // e.g., "vs Computer - 2023-10-27 10:30"
-  timestamp: number; // Save initiation timestamp
-  gameMode: 'friend' | 'computer' | 'loaded_friend'; // Online games are saved as 'loaded_friend'
+  id: string;
+  name: string;
+  timestamp: number;
+  gameMode: 'friend' | 'computer' | 'loaded_friend';
   boardState: BoardState;
   currentPlayer: PlayerColor;
   player1Name: string;
@@ -100,32 +106,26 @@ export interface SavedGame {
   enPassantTarget: Position | null;
   capturedByWhite: Piece[];
   capturedByBlack: Piece[];
-  gameStatus: GameStatus; // Snapshot of game status
+  gameStatus: GameStatus;
   kingInCheckPosition: Position | null;
   originalLocalPlayerColor?: PlayerColor | null;
-
-  // Timer related state
+  aiDifficulty?: AIDifficultyLevel; // For saved AI games
   timeLimitPerPlayer: number | null;
   player1TimeLeft: number | null;
   player2TimeLeft: number | null;
-  gameStartTimeStamp: number | null; // Timestamp when this specific game instance started
-  lastMove?: { from: Position; to: Position } | null; // For potentially restoring last move highlight
+  gameStartTimeStamp: number | null;
+  lastMove?: { from: Position; to: Position } | null;
 }
 
-// Layout and Styling Types
 export type BoardStyleId = 'default-dark' | 'default-light' | 'classic-wood' | 'cool-blue' | 'forest-green';
-
-export type PieceColorOption =
-  | 'white-theme-default' | 'white-classic-white' | 'white-fiery-red' | 'white-golden-yellow' | 'white-deep-blue' | 'white-silver-gray' | 'white-emerald-green'
-  | 'black-theme-default' | 'black-classic-black' | 'black-fiery-red' | 'black-golden-yellow' | 'black-deep-blue' | 'black-silver-gray' | 'black-emerald-green';
 
 export interface LayoutSettings {
   boardStyleId: BoardStyleId;
-  whitePieceColor: PieceColorOption;
-  blackPieceColor: PieceColorOption;
+  whitePieceColor?: string;
+  blackPieceColor?: string;
+  isSoundEnabled: boolean;
 }
 
-// Timer options in seconds
 export const TIME_OPTIONS = {
   '10 minutes': 600,
   '15 minutes': 900,
@@ -133,3 +133,56 @@ export const TIME_OPTIONS = {
   '25 minutes': 1500,
 };
 export type TimeOptionKey = keyof typeof TIME_OPTIONS;
+
+// --- Puzzle Mode Types ---
+export enum PuzzleDifficulty {
+    EASY = 'Easy',
+    MEDIUM = 'Medium',
+    HARD = 'Hard',
+}
+
+export interface PuzzleSolutionMove {
+    from: Position;
+    to: Position;
+    promotion?: PieceType;
+    comment?: string; // Optional comment for the move
+}
+
+export interface Puzzle {
+    id: string;
+    title: string;
+    description: string; // e.g., "White to play and mate in 1"
+    difficulty: PuzzleDifficulty;
+    fen?: string; // FEN string for initial position (alternative to manual setup)
+    initialBoard?: BoardState; // Use if FEN is not provided
+    playerToMove: PlayerColor;
+    initialCastlingRights?: CastlingRights;
+    initialEnPassantTarget?: Position | null;
+    solution: PuzzleSolutionMove[]; // Sequence of moves to solve the puzzle
+    // Opponent moves can be implicitly part of the solution sequence if the puzzle is multi-move interactive
+}
+
+// --- Undo Move Type ---
+export interface MoveHistoryEntry {
+  boardState: BoardState;
+  currentPlayer: PlayerColor;
+  castlingRights: CastlingRights;
+  enPassantTarget: Position | null;
+  capturedByWhite: Piece[];
+  capturedByBlack: Piece[];
+  gameStatus: GameStatus;
+  kingInCheckPosition: Position | null;
+  lastMove: { from: Position; to: Position } | null;
+  // Timer states if needed for undo, can be complex
+  player1TimeLeft: number | null;
+  player2TimeLeft: number | null;
+  // gameStartTimeStamp: number | null; // This probably shouldn't change on undo
+}
+
+// --- Changelog Type ---
+export interface ChangelogVersion {
+  version: string;
+  title?: string;
+  date?: string; // Optional: e.g., "2024-07-28"
+  features: string[]; // Each string can be a main point or a sub-point starting with "  • "
+}

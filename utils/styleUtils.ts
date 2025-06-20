@@ -1,8 +1,7 @@
-import { Theme, PlayerColor } from '../types';
-import { BOARD_STYLE_CONFIG, PIECE_COLOR_CONFIG } from '../constants';
+import { PlayerColor, Theme, LayoutSettings } from '../types';
+import { BOARD_STYLE_CONFIG } from '../constants';
 
 export type BoardStyleId = keyof typeof BOARD_STYLE_CONFIG;
-export type PieceColorOptionId = keyof typeof PIECE_COLOR_CONFIG;
 
 export interface BoardStyleClasses {
   container: string;
@@ -12,43 +11,45 @@ export interface BoardStyleClasses {
   selectedSquareRing: string;
   possibleMoveDot: string;
   possibleMoveRing: string;
-  lastMoveSquareOverlay: string; // Added for last move highlight
-}
-
-export interface PieceStyleClasses {
-  colorClass: string;
-  // fontWeightClass might be part of the colorClass string itself from PIECE_COLOR_CONFIG
+  lastMoveSquareOverlay: string;
+  lastMoveFlashColorStart: string; 
+  lastMoveFlashColorMid: string;   
+  lastMoveFlashColorEnd: string;   
 }
 
 export function getBoardClasses(styleId: BoardStyleId, theme: Theme): BoardStyleClasses {
   const configForStyle = BOARD_STYLE_CONFIG[styleId];
   if (!configForStyle) {
-    // Fallback to default dark if styleId is invalid
     console.warn(`Invalid boardStyleId: ${styleId}. Falling back to default-dark.`);
     return BOARD_STYLE_CONFIG['default-dark'][theme] || BOARD_STYLE_CONFIG['default-dark']['dark'];
   }
-  return configForStyle[theme] || configForStyle.light; // Fallback to light if specific theme variant not found in config
+  return configForStyle[theme] || configForStyle.light; 
 }
 
-export function getPieceClasses(
-  colorOptionId: PieceColorOptionId, // e.g., 'white-classic-white' or 'black-fiery-red'
-  playerColor: PlayerColor, // Used to construct the key if needed, or for default logic
-  theme: Theme
-): PieceStyleClasses {
-  const themedStyle = PIECE_COLOR_CONFIG[colorOptionId];
-
-  if (themedStyle) {
-    return { colorClass: themedStyle[theme] || themedStyle.light };
+/**
+ * Determines the color for a chess piece icon.
+ * Prioritizes custom colors from layoutSettings, then falls back to theme-based defaults.
+ * @param playerColor The color of the player (White or Black).
+ * @param theme The current application theme (light or dark).
+ * @param layoutSettings The current layout settings, which may contain custom piece colors.
+ * @returns A hex color string for the icon.
+ */
+export function getPieceIconColor(
+  playerColor: PlayerColor,
+  theme: Theme,
+  layoutSettings: LayoutSettings
+): string {
+  if (playerColor === PlayerColor.WHITE) {
+    if (layoutSettings.whitePieceColor) {
+      return layoutSettings.whitePieceColor;
+    }
+    // Default white piece colors based on theme (Sober adjustments)
+    return theme === 'dark' ? '#D1D5DB' : '#F3F4F6'; // Dark: gray-300, Light: gray-100
+  } else { // PlayerColor.BLACK
+    if (layoutSettings.blackPieceColor) {
+      return layoutSettings.blackPieceColor;
+    }
+    // Default black piece colors based on theme (Sober adjustments)
+    return theme === 'dark' ? '#4B5563' : '#374151'; // Dark: gray-600, Light: gray-700
   }
-
-  // Fallback to theme defaults if custom option is 'theme-default' or invalid
-  const defaultOptionId = playerColor === PlayerColor.WHITE ? 'white-theme-default' : 'black-theme-default';
-  const defaultThemedStyle = PIECE_COLOR_CONFIG[defaultOptionId];
-  
-  if (defaultThemedStyle) {
-    return { colorClass: defaultThemedStyle[theme] || defaultThemedStyle.light };
-  }
-  
-  // Absolute fallback (should not happen with current config)
-  return { colorClass: playerColor === PlayerColor.WHITE ? (theme === 'dark' ? 'text-rose-500 font-bold' : 'text-red-600 font-bold') : (theme === 'dark' ? 'text-cyan-400' : 'text-blue-600') };
 }

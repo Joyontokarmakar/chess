@@ -1,32 +1,99 @@
-import { PieceType, PlayerColor } from './types';
+import React from 'react';
+import { PieceType, PlayerColor, AIDifficultyLevel, Puzzle, PuzzleDifficulty, CastlingRights, BoardState, Piece, Position, ChangelogVersion } from './types';
+import { FaChessKing, FaChessQueen, FaChessRook, FaChessBishop, FaChessKnight, FaChessPawn } from 'react-icons/fa';
 
-export const PIECE_SYMBOLS: Record<PlayerColor, Record<PieceType, string>> = {
-  [PlayerColor.WHITE]: {
-    [PieceType.KING]: '♔',
-    [PieceType.QUEEN]: '♕',
-    [PieceType.ROOK]: '♖',
-    [PieceType.BISHOP]: '♗',
-    [PieceType.KNIGHT]: '♘',
-    [PieceType.PAWN]: '♙',
-  },
-  [PlayerColor.BLACK]: {
-    [PieceType.KING]: '♚',
-    [PieceType.QUEEN]: '♛',
-    [PieceType.ROOK]: '♜',
-    [PieceType.BISHOP]: '♝',
-    [PieceType.KNIGHT]: '♞',
-    [PieceType.PAWN]: '♟︎',
-  },
+// Maps PieceType to its corresponding Font Awesome icon component from react-icons.
+export const PIECE_ICON_COMPONENTS: Record<PieceType, React.ElementType> = {
+  [PieceType.KING]: FaChessKing,
+  [PieceType.QUEEN]: FaChessQueen,
+  [PieceType.ROOK]: FaChessRook,
+  [PieceType.BISHOP]: FaChessBishop,
+  [PieceType.KNIGHT]: FaChessKnight,
+  [PieceType.PAWN]: FaChessPawn,
 };
 
-export const INITIAL_CASTLING_RIGHTS = {
+export const INITIAL_CASTLING_RIGHTS: CastlingRights = {
   [PlayerColor.WHITE]: { kingSide: true, queenSide: true },
   [PlayerColor.BLACK]: { kingSide: true, queenSide: true },
 };
 
 export const AI_PLAYER_NAME = "Gemini AI";
 
-export function createInitialBoard() {
+export const AI_DIFFICULTY_LEVELS: AIDifficultyLevel[] = [
+  AIDifficultyLevel.EASY,
+  AIDifficultyLevel.MEDIUM,
+  AIDifficultyLevel.HARD,
+  AIDifficultyLevel.GRANDMASTER,
+];
+
+// FEN Parser
+export function parseFEN(fen: string): { board: BoardState, playerToMove: PlayerColor, castlingRights: CastlingRights, enPassantTarget: Position | null } {
+  const parts = fen.split(' ');
+  const piecePlacement = parts[0];
+  const activeColor = parts[1];
+  const castlingAvailability = parts[2];
+  const enPassantTargetSquare = parts[3];
+  // Ignoring halfmove clock (parts[4]) and fullmove number (parts[5]) for now
+
+  const board: BoardState = Array(8).fill(null).map(() => Array(8).fill(null));
+  let row = 0;
+  let col = 0;
+
+  for (const char of piecePlacement) {
+    if (char === '/') {
+      row++;
+      col = 0;
+    } else if (/\d/.test(char)) {
+      col += parseInt(char, 10);
+    } else {
+      let color: PlayerColor;
+      let type: PieceType;
+      if (char.toUpperCase() === char) { // White pieces are uppercase
+        color = PlayerColor.WHITE;
+      } else { // Black pieces are lowercase
+        color = PlayerColor.BLACK;
+      }
+      switch (char.toLowerCase()) {
+        case 'p': type = PieceType.PAWN; break;
+        case 'r': type = PieceType.ROOK; break;
+        case 'n': type = PieceType.KNIGHT; break;
+        case 'b': type = PieceType.BISHOP; break;
+        case 'q': type = PieceType.QUEEN; break;
+        case 'k': type = PieceType.KING; break;
+        default: throw new Error(`Invalid FEN piece: ${char}`);
+      }
+      board[row][col] = { id: `${color.charAt(0).toLowerCase()}${type}${row}${col}`, type, color, hasMoved: false }; // hasMoved might need adjustment based on FEN or puzzle context
+      col++;
+    }
+  }
+
+  const playerToMove = activeColor === 'w' ? PlayerColor.WHITE : PlayerColor.BLACK;
+
+  const castlingRights: CastlingRights = {
+    [PlayerColor.WHITE]: { kingSide: castlingAvailability.includes('K'), queenSide: castlingAvailability.includes('Q') },
+    [PlayerColor.BLACK]: { kingSide: castlingAvailability.includes('k'), queenSide: castlingAvailability.includes('q') },
+  };
+
+  let enPassantTarget: Position | null = null;
+  if (enPassantTargetSquare !== '-') {
+    const epCol = enPassantTargetSquare.charCodeAt(0) - 'a'.charCodeAt(0);
+    const epRow = 8 - parseInt(enPassantTargetSquare.charAt(1), 10);
+    enPassantTarget = [epRow, epCol];
+  }
+
+  // Note: hasMoved for pieces (especially King and Rooks for castling) needs careful handling.
+  // A true FEN parser would deduce this. For puzzles, if castling is key, ensure FEN reflects this or set hasMoved manually.
+  // For simplicity here, new pieces from FEN are set to hasMoved: false. If a puzzle relies on castling being unavailable due to prior moves,
+  // the castlingRights part of FEN or the puzzle definition should correctly state this.
+
+  return { board, playerToMove, castlingRights, enPassantTarget };
+}
+
+
+export function createInitialBoard(fen?: string): BoardState {
+  if (fen) {
+    return parseFEN(fen).board;
+  }
   const board = Array(8).fill(null).map(() => Array(8).fill(null));
 
   const placePiece = (row: number, col: number, type: PieceType, color: PlayerColor, idSuffix: string) => {
@@ -58,179 +125,264 @@ export function createInitialBoard() {
   return board;
 }
 
-// --- Layout Customization Configurations ---
+
+export const SOUND_MOVE = 'https://actions.google.com/sounds/v1/sports/wooden_bat_hits_baseball_run.ogg';
+export const SOUND_CAPTURE = 'https://actions.google.com/sounds/v1/sports/pool_table_break.ogg';
+export const SOUND_WIN = 'https://actions.google.com/sounds/v1/cartoon/magic_chime.ogg';
+
 
 export const BOARD_STYLE_CONFIG = {
   'default-dark': {
-    light: { // Keeping light and dark variants for consistency, even if some are same
+    light: { 
       container: "bg-slate-700/20 backdrop-blur-md border-2 border-slate-600/30 shadow-2xl shadow-black/50",
-      lightSquare: "bg-slate-300/25 backdrop-blur-sm border border-slate-400/20",
-      darkSquare: "bg-slate-700/35 backdrop-blur-sm border border-slate-600/20",
-      selectedSquareBg: "bg-yellow-400/40 backdrop-blur-xs",
-      selectedSquareRing: "ring-2 ring-yellow-300/70 ring-inset",
-      possibleMoveDot: "bg-sky-400/80 opacity-70",
-      possibleMoveRing: "ring-2 ring-pink-500/90 ring-inset opacity-80",
-      lastMoveSquareOverlay: "bg-yellow-500/30 pointer-events-none",
+      lightSquare: "bg-slate-500/30 backdrop-blur-sm border border-slate-600/20",
+      darkSquare: "bg-slate-700/40 backdrop-blur-sm border border-slate-800/20",
+      selectedSquareBg: "bg-sky-600/30 backdrop-blur-xs",
+      selectedSquareRing: "ring-2 ring-sky-500/50 ring-inset",
+      possibleMoveDot: "bg-sky-500/50 opacity-60",
+      possibleMoveRing: "ring-2 ring-teal-500/60 ring-inset opacity-70",
+      lastMoveSquareOverlay: "bg-sky-700/15 pointer-events-none",
+      lastMoveFlashColorStart: "rgba(14, 165, 233, 0.0)",
+      lastMoveFlashColorMid: "rgba(14, 165, 233, 0.7)",   
+      lastMoveFlashColorEnd: "rgba(14, 165, 233, 0.0)", 
     },
     dark: { 
       container: "bg-slate-700/20 backdrop-blur-md border-2 border-slate-600/30 shadow-2xl shadow-black/50",
-      lightSquare: "bg-slate-300/25 backdrop-blur-sm border border-slate-400/20",
-      darkSquare: "bg-slate-700/35 backdrop-blur-sm border border-slate-600/20",
-      selectedSquareBg: "bg-yellow-400/40 backdrop-blur-xs",
-      selectedSquareRing: "ring-2 ring-yellow-300/70 ring-inset",
-      possibleMoveDot: "bg-sky-400/80 opacity-70",
-      possibleMoveRing: "ring-2 ring-pink-500/90 ring-inset opacity-80",
-      lastMoveSquareOverlay: "bg-yellow-500/30 pointer-events-none",
+      lightSquare: "bg-slate-500/30 backdrop-blur-sm border border-slate-600/20",
+      darkSquare: "bg-slate-700/40 backdrop-blur-sm border border-slate-800/20",
+      selectedSquareBg: "bg-sky-600/30 backdrop-blur-xs",
+      selectedSquareRing: "ring-2 ring-sky-500/50 ring-inset",
+      possibleMoveDot: "bg-sky-500/50 opacity-60",
+      possibleMoveRing: "ring-2 ring-teal-500/60 ring-inset opacity-70",
+      lastMoveSquareOverlay: "bg-sky-700/15 pointer-events-none",
+      lastMoveFlashColorStart: "rgba(14, 165, 233, 0.0)",
+      lastMoveFlashColorMid: "rgba(14, 165, 233, 0.7)",  
+      lastMoveFlashColorEnd: "rgba(14, 165, 233, 0.0)",
     }
   },
   'default-light': {
     light: {
-      container: "bg-slate-200/30 backdrop-blur-md border-2 border-slate-300/50 shadow-xl shadow-gray-400/40",
-      lightSquare: "bg-stone-100/70 backdrop-blur-sm border border-stone-300/50",
-      darkSquare: "bg-stone-300/70 backdrop-blur-sm border border-stone-400/50",
-      selectedSquareBg: "bg-amber-400/50 backdrop-blur-xs",
-      selectedSquareRing: "ring-2 ring-amber-500/80 ring-inset",
-      possibleMoveDot: "bg-sky-500/80 opacity-75",
-      possibleMoveRing: "ring-2 ring-rose-500/90 ring-inset opacity-80",
-      lastMoveSquareOverlay: "bg-amber-600/30 pointer-events-none",
+      container: "bg-slate-200/40 backdrop-blur-md border-2 border-slate-300/60 shadow-xl shadow-gray-400/30",
+      lightSquare: "bg-stone-200/80 backdrop-blur-sm border border-stone-300/60",
+      darkSquare: "bg-stone-400/80 backdrop-blur-sm border border-stone-500/60",
+      selectedSquareBg: "bg-teal-300/40 backdrop-blur-xs",
+      selectedSquareRing: "ring-2 ring-teal-400/60 ring-inset",
+      possibleMoveDot: "bg-teal-500/60 opacity-70",
+      possibleMoveRing: "ring-2 ring-cyan-600/70 ring-inset opacity-75",
+      lastMoveSquareOverlay: "bg-teal-600/15 pointer-events-none",
+      lastMoveFlashColorStart: "rgba(20, 184, 166, 0.0)",
+      lastMoveFlashColorMid: "rgba(20, 184, 166, 0.7)",  
+      lastMoveFlashColorEnd: "rgba(20, 184, 166, 0.0)",
     },
     dark: { 
-      container: "bg-slate-600/30 backdrop-blur-md border-2 border-slate-500/50 shadow-xl shadow-black/40",
-      lightSquare: "bg-stone-400/70 backdrop-blur-sm border border-stone-500/50",
-      darkSquare: "bg-stone-600/70 backdrop-blur-sm border border-stone-700/50",
-      selectedSquareBg: "bg-amber-500/50 backdrop-blur-xs",
-      selectedSquareRing: "ring-2 ring-amber-600/80 ring-inset",
-      possibleMoveDot: "bg-sky-400/80 opacity-75",
-      possibleMoveRing: "ring-2 ring-rose-400/90 ring-inset opacity-80",
-      lastMoveSquareOverlay: "bg-yellow-600/30 pointer-events-none",
+      container: "bg-slate-600/40 backdrop-blur-md border-2 border-slate-500/60 shadow-xl shadow-black/30",
+      lightSquare: "bg-stone-400/80 backdrop-blur-sm border border-stone-500/60",
+      darkSquare: "bg-stone-600/80 backdrop-blur-sm border border-stone-700/60",
+      selectedSquareBg: "bg-teal-500/40 backdrop-blur-xs",
+      selectedSquareRing: "ring-2 ring-teal-600/60 ring-inset",
+      possibleMoveDot: "bg-teal-400/60 opacity-70",
+      possibleMoveRing: "ring-2 ring-cyan-500/70 ring-inset opacity-75",
+      lastMoveSquareOverlay: "bg-teal-700/15 pointer-events-none",
+      lastMoveFlashColorStart: "rgba(15, 118, 110, 0.0)",
+      lastMoveFlashColorMid: "rgba(15, 118, 110, 0.7)", 
+      lastMoveFlashColorEnd: "rgba(15, 118, 110, 0.0)",
     }
   },
   'classic-wood': {
     light: {
-      container: "bg-yellow-700/30 backdrop-blur-sm border-2 border-yellow-800/40 shadow-xl shadow-yellow-900/30",
-      lightSquare: "bg-yellow-200/80 border border-yellow-400/50", 
-      darkSquare: "bg-yellow-600/80 border border-yellow-700/50", 
-      selectedSquareBg: "bg-green-500/40",
-      selectedSquareRing: "ring-2 ring-green-600/60 ring-inset",
-      possibleMoveDot: "bg-green-600/70",
-      possibleMoveRing: "ring-2 ring-green-700/80 ring-inset",
-      lastMoveSquareOverlay: "bg-lime-400/40 pointer-events-none",
+      container: "bg-amber-700/20 backdrop-blur-sm border-2 border-amber-800/30 shadow-xl shadow-amber-900/20",
+      lightSquare: "bg-amber-200/80 border border-amber-400/40",
+      darkSquare: "bg-amber-600/80 border border-amber-700/40",
+      selectedSquareBg: "bg-lime-500/30",
+      selectedSquareRing: "ring-2 ring-lime-600/50 ring-inset",
+      possibleMoveDot: "bg-lime-600/50 opacity-60",
+      possibleMoveRing: "ring-2 ring-emerald-600/60 ring-inset opacity-70",
+      lastMoveSquareOverlay: "bg-lime-600/20 pointer-events-none",
+      lastMoveFlashColorStart: "rgba(132, 204, 22, 0.0)",
+      lastMoveFlashColorMid: "rgba(132, 204, 22, 0.7)",   
+      lastMoveFlashColorEnd: "rgba(132, 204, 22, 0.0)",
     },
     dark: {
-      container: "bg-yellow-900/40 backdrop-blur-sm border-2 border-yellow-950/50 shadow-2xl shadow-black/40",
-      lightSquare: "bg-yellow-400/70 border border-yellow-600/50", 
-      darkSquare: "bg-yellow-800/70 border border-yellow-900/50", 
-      selectedSquareBg: "bg-lime-500/40",
-      selectedSquareRing: "ring-2 ring-lime-600/60 ring-inset",
-      possibleMoveDot: "bg-lime-600/70",
-      possibleMoveRing: "ring-2 ring-lime-700/80 ring-inset",
-      lastMoveSquareOverlay: "bg-green-400/40 pointer-events-none",
+      container: "bg-amber-900/30 backdrop-blur-sm border-2 border-amber-950/40 shadow-2xl shadow-black/30",
+      lightSquare: "bg-amber-400/70 border border-amber-600/40", 
+      darkSquare: "bg-amber-800/70 border border-amber-900/40", 
+      selectedSquareBg: "bg-lime-600/30",
+      selectedSquareRing: "ring-2 ring-lime-700/50 ring-inset",
+      possibleMoveDot: "bg-lime-700/50 opacity-60",
+      possibleMoveRing: "ring-2 ring-emerald-700/60 ring-inset opacity-70",
+      lastMoveSquareOverlay: "bg-lime-700/20 pointer-events-none",
+      lastMoveFlashColorStart: "rgba(101, 163, 13, 0.0)",
+      lastMoveFlashColorMid: "rgba(101, 163, 13, 0.7)",  
+      lastMoveFlashColorEnd: "rgba(101, 163, 13, 0.0)",
     }
   },
   'cool-blue': {
     light: {
-      container: "bg-sky-600/20 backdrop-blur-md border-2 border-sky-500/30 shadow-xl shadow-sky-400/30",
-      lightSquare: "bg-sky-100/80 border border-sky-300/50",
-      darkSquare: "bg-sky-500/70 border border-sky-600/50",
-      selectedSquareBg: "bg-indigo-400/40",
-      selectedSquareRing: "ring-2 ring-indigo-500/60 ring-inset",
-      possibleMoveDot: "bg-indigo-500/70",
-      possibleMoveRing: "ring-2 ring-purple-600/80 ring-inset",
-      lastMoveSquareOverlay: "bg-teal-400/30 pointer-events-none",
+      container: "bg-sky-600/15 backdrop-blur-md border-2 border-sky-500/20 shadow-xl shadow-sky-400/20",
+      lightSquare: "bg-sky-200/70 border border-sky-300/40",
+      darkSquare: "bg-sky-600/60 border border-sky-700/40",
+      selectedSquareBg: "bg-indigo-400/30",
+      selectedSquareRing: "ring-2 ring-indigo-500/50 ring-inset",
+      possibleMoveDot: "bg-indigo-500/50 opacity-60",
+      possibleMoveRing: "ring-2 ring-violet-600/60 ring-inset opacity-70",
+      lastMoveSquareOverlay: "bg-indigo-600/15 pointer-events-none",
+      lastMoveFlashColorStart: "rgba(129, 140, 248, 0.0)",
+      lastMoveFlashColorMid: "rgba(129, 140, 248, 0.7)",   
+      lastMoveFlashColorEnd: "rgba(129, 140, 248, 0.0)",
     },
     dark: {
-      container: "bg-blue-800/30 backdrop-blur-md border-2 border-blue-700/40 shadow-2xl shadow-black/40",
-      lightSquare: "bg-sky-300/70 border border-sky-500/50",
-      darkSquare: "bg-blue-700/70 border border-blue-800/50",
-      selectedSquareBg: "bg-purple-500/40",
-      selectedSquareRing: "ring-2 ring-purple-400/60 ring-inset",
-      possibleMoveDot: "bg-purple-600/70",
-      possibleMoveRing: "ring-2 ring-violet-500/80 ring-inset",
-      lastMoveSquareOverlay: "bg-cyan-400/30 pointer-events-none",
+      container: "bg-blue-800/20 backdrop-blur-md border-2 border-blue-700/30 shadow-2xl shadow-black/30",
+      lightSquare: "bg-sky-400/60 border border-sky-600/40",
+      darkSquare: "bg-blue-700/60 border border-blue-800/40",
+      selectedSquareBg: "bg-purple-500/30",
+      selectedSquareRing: "ring-2 ring-purple-400/50 ring-inset",
+      possibleMoveDot: "bg-purple-600/50 opacity-60",
+      possibleMoveRing: "ring-2 ring-violet-500/60 ring-inset opacity-70",
+      lastMoveSquareOverlay: "bg-purple-700/15 pointer-events-none",
+      lastMoveFlashColorStart: "rgba(167, 139, 250, 0.0)",
+      lastMoveFlashColorMid: "rgba(167, 139, 250, 0.7)",  
+      lastMoveFlashColorEnd: "rgba(167, 139, 250, 0.0)",
     }
   },
    'forest-green': {
     light: {
-      container: "bg-green-700/20 backdrop-blur-md border-2 border-green-600/30 shadow-xl shadow-green-500/30",
-      lightSquare: "bg-lime-200/80 border border-lime-400/50",
-      darkSquare: "bg-green-600/70 border border-green-700/50",
-      selectedSquareBg: "bg-yellow-500/40",
-      selectedSquareRing: "ring-2 ring-yellow-600/60 ring-inset",
-      possibleMoveDot: "bg-orange-500/70",
-      possibleMoveRing: "ring-2 ring-red-600/80 ring-inset",
-      lastMoveSquareOverlay: "bg-teal-500/30 pointer-events-none",
+      container: "bg-green-700/15 backdrop-blur-md border-2 border-green-600/20 shadow-xl shadow-green-500/20",
+      lightSquare: "bg-lime-300/70 border border-lime-400/40",
+      darkSquare: "bg-green-700/60 border border-green-800/40",
+      selectedSquareBg: "bg-yellow-600/30",
+      selectedSquareRing: "ring-2 ring-yellow-700/50 ring-inset",
+      possibleMoveDot: "bg-orange-600/50 opacity-60",
+      possibleMoveRing: "ring-2 ring-amber-700/60 ring-inset opacity-70",
+      lastMoveSquareOverlay: "bg-yellow-700/15 pointer-events-none",
+      lastMoveFlashColorStart: "rgba(245, 158, 11, 0.0)",
+      lastMoveFlashColorMid: "rgba(245, 158, 11, 0.7)",   
+      lastMoveFlashColorEnd: "rgba(245, 158, 11, 0.0)",
     },
     dark: {
-      container: "bg-emerald-800/30 backdrop-blur-md border-2 border-emerald-700/40 shadow-2xl shadow-black/40",
-      lightSquare: "bg-lime-400/70 border border-lime-600/50",
-      darkSquare: "bg-emerald-700/70 border border-emerald-800/50",
-      selectedSquareBg: "bg-amber-500/40",
-      selectedSquareRing: "ring-2 ring-amber-400/60 ring-inset",
-      possibleMoveDot: "bg-red-600/70",
-      possibleMoveRing: "ring-2 ring-rose-500/80 ring-inset",
-      lastMoveSquareOverlay: "bg-green-500/30 pointer-events-none",
+      container: "bg-emerald-800/20 backdrop-blur-md border-2 border-emerald-700/30 shadow-2xl shadow-black/30",
+      lightSquare: "bg-lime-500/60 border border-lime-700/40",
+      darkSquare: "bg-emerald-700/60 border border-emerald-800/40",
+      selectedSquareBg: "bg-amber-600/30",
+      selectedSquareRing: "ring-2 ring-amber-500/50 ring-inset",
+      possibleMoveDot: "bg-red-700/50 opacity-60",
+      possibleMoveRing: "ring-2 ring-rose-600/60 ring-inset opacity-70",
+      lastMoveSquareOverlay: "bg-amber-700/15 pointer-events-none",
+      lastMoveFlashColorStart: "rgba(217, 119, 6, 0.0)",
+      lastMoveFlashColorMid: "rgba(217, 119, 6, 0.7)",  
+      lastMoveFlashColorEnd: "rgba(217, 119, 6, 0.0)",
     }
   }
 };
 
-export const PIECE_COLOR_CONFIG = {
-  // --- White Piece Options ---
-  'white-theme-default': { 
-    light: 'text-red-600 font-bold', 
-    dark: 'text-rose-500 font-bold' 
+// --- Sample Puzzles ---
+export const PUZZLES: Puzzle[] = [
+  {
+    id: 'mate-in-1-easy',
+    title: 'Easy Mate in 1',
+    description: 'White to play and deliver checkmate in one move.',
+    difficulty: PuzzleDifficulty.EASY,
+    fen: 'rnb1kbnr/pppp1ppp/8/4p3/1P1Pq3/N1P5/P3PPPP/R1BQKBNR w KQkq - 0 1', // Position after 1. e4 e5 2.Qh5 Nc6 3.Bc4 Nf6?? 4.Qxf7# would be too simple; let's use a different one.
+    // Fen for a simple mate: "4k3/R7/8/8/8/8/8/4K3 w - - 0 1" -> Ra8#
+    // Let's use: Black King on e8, White Rook on a7, White King on e1. White to move. Ra8#
+    // More complex example: rnbqkbnr/ppp1pppp/8/1B1p4/4P3/8/PPPP1PPP/RNBQK1NR b KQkq - 1 2 (after 1.e4 d5 2.Bb5+); Black can play c6.
+    // Example from Lichess puzzles: "r1bqkb1r/pppp1ppp/2n2n2/4p3/3PP3/5N2/PPP2PPP/RNBQKB1R w KQkq - 0 1"
+    // Let's use a clearer mate in 1: FEN: "3k4/3P4/K7/8/8/8/8/8 w - - 0 1" (White King a6, Pawn d7, Black King d8. White moves d8=Q#)
+    initialBoard: (() => {
+        const board = Array(8).fill(null).map(() => Array(8).fill(null));
+        board[0][3] = { id: 'bk', type: PieceType.KING, color: PlayerColor.BLACK, hasMoved: true };
+        board[1][3] = { id: 'wP', type: PieceType.PAWN, color: PlayerColor.WHITE, hasMoved: true }; // Pawn on d7
+        board[2][0] = { id: 'wK', type: PieceType.KING, color: PlayerColor.WHITE, hasMoved: true }; // King on a6
+        return board;
+    })(),
+    playerToMove: PlayerColor.WHITE,
+    initialCastlingRights: {
+        [PlayerColor.WHITE]: { kingSide: false, queenSide: false },
+        [PlayerColor.BLACK]: { kingSide: false, queenSide: false },
+    },
+    solution: [{ from: [1, 3], to: [0, 3], promotion: PieceType.QUEEN, comment: "Pawn promotes to Queen, delivering checkmate." }],
   },
-  'white-classic-white': { 
-    light: 'text-gray-800 font-bold', 
-    dark: 'text-gray-100 font-bold' 
+  {
+    id: 'win-material-easy',
+    title: 'Easy Material Gain',
+    description: 'White to play and win material.',
+    difficulty: PuzzleDifficulty.EASY,
+    // FEN: "r1b1kbnr/p1p1qppp/2np4/1p2p3/2BPP3/2N2N2/PPP2PPP/R1BQK2R w KQkq - 0 1" (Fork Knight on c3) -> Nd5 winning queen or rook
+    fen: "r1b1kbnr/p1p1qppp/2np4/1B2p3/3PP3/2N2N2/PPP2PPP/R1BQK2R w KQkq - 0 1", // Simpler: Bishop b5, Queen e7. Nd5 forks Queen e7 and Rook a8 if c6 is not played. Here, if black plays ...a6, then Bxc6+.
+    // A clearer example: White Knight on c3, Black Queen on d5, Black King on e8. White plays Ne4, attacking queen. Queen has to move. If Queen moves to c5, Nf6+ check and fork.
+    // FEN: "4k3/8/8/3q4/8/2N5/8/4K3 w - - 0 1" (White King e1, Knight c3. Black King e8, Queen d5. White plays Nxd5) No, this is just a capture.
+    // How about a simple fork? White Knight at e4, Black King at g8, Black Rook at c8. White to play Nf6+
+    initialBoard: (() => {
+        const board = Array(8).fill(null).map(() => Array(8).fill(null));
+        board[0][6] = { id: 'bK', type: PieceType.KING, color: PlayerColor.BLACK, hasMoved: true }; // Black King g8
+        board[0][2] = { id: 'bR', type: PieceType.ROOK, color: PlayerColor.BLACK, hasMoved: true }; // Black Rook c8
+        board[4][4] = { id: 'wN', type: PieceType.KNIGHT, color: PlayerColor.WHITE, hasMoved: true }; // White Knight e4
+        board[7][4] = { id: 'wK', type: PieceType.KING, color: PlayerColor.WHITE, hasMoved: true }; // White King e1
+        return board;
+    })(),
+    playerToMove: PlayerColor.WHITE,
+    initialCastlingRights: {
+        [PlayerColor.WHITE]: { kingSide: false, queenSide: false },
+        [PlayerColor.BLACK]: { kingSide: false, queenSide: false },
+    },
+    solution: [{ from: [4, 4], to: [2, 5], comment: "Nf6+ forks King and Rook." }], // Nf6+
   },
-  'white-fiery-red':     { 
-    light: 'text-red-500 font-bold', 
-    dark: 'text-red-400 font-bold' 
-  },
-  'white-golden-yellow': { 
-    light: 'text-yellow-500 font-bold', 
-    dark: 'text-yellow-400 font-bold' 
-  },
-  'white-deep-blue':     { 
-    light: 'text-blue-700 font-bold', 
-    dark: 'text-blue-500 font-bold' 
-  },
-  'white-silver-gray':   { 
-    light: 'text-gray-500 font-bold', 
-    dark: 'text-gray-300 font-bold' 
-  },
-  'white-emerald-green': { 
-    light: 'text-emerald-600 font-bold', 
-    dark: 'text-emerald-400 font-bold' 
-  },
+  // Add more puzzles here
+];
 
-  // --- Black Piece Options ---
-  'black-theme-default': { 
-    light: 'text-blue-600', 
-    dark: 'text-cyan-400' 
+// --- Changelog Data ---
+export const CHANGELOG_DATA: ChangelogVersion[] = [
+  {
+    version: "4",
+    title: "Major Gameplay Expansion & AI Enhancements",
+    features: [
+      "Enhanced UI for Game Board and Main Menu.",
+      "Introduced optional Timer Mode for all game modes.",
+      "Added visual highlight for the Last Move.",
+      "Integrated a comprehensive Chess Guide for rules and strategies.",
+      "Refreshed piece appearance for a new look.",
+      "Improved mobile menu design for better usability.",
+      "Adjusted game appearance colors to be more 'sober' and eye-friendly.",
+      "Incorporated Sound Effects for piece moves, captures, and game wins.",
+      "Added a dedicated 'Game Settings' section in the menu:",
+      "  • Toggle for game sounds.",
+      "  • Relocated 'Customize Appearance' into Game Settings.",
+      "Implemented AI Difficulty Levels (Easy, Medium, Hard, Grandmaster).",
+      "Introduced Puzzle Mode / Tactics Trainer with curated positions.",
+      "Added a Hint System to request AI-suggested moves.",
+      "Enabled Undo Move functionality for casual game modes.",
+    ],
   },
-  'black-classic-black': { 
-    light: 'text-black', 
-    dark: 'text-white' 
-  }, // Note: true black/white can be harsh
-  'black-fiery-red':     { 
-    light: 'text-red-700', 
-    dark: 'text-red-500' 
+  {
+    version: "3",
+    title: "UI & Gameplay Refinements",
+    features: [
+      "UI updates for the Game Board and Main Menu.",
+      "Timer Mode added for all game types, with an option to play without it.",
+      "Visual indication for the last move made.",
+      "Chess Guide added for learning rules and piece movements.",
+    ],
   },
-  'black-golden-yellow': { 
-    light: 'text-yellow-600', 
-    dark: 'text-yellow-500' 
+  {
+    version: "2",
+    title: "Customization & Game Management",
+    features: [
+      "Theme customization: Light and Dark modes.",
+      "Appearance options for board and pieces.",
+      "Simulated 'Play Online' mode (same browser/device).",
+      "Save and Load game functionality.",
+      "Updated UI design:",
+      "  • Game board aesthetics.",
+      "  • Hall of Fame presentation and data.",
+      "  • Menu design improvements.",
+    ],
   },
-  'black-deep-blue':     { 
-    light: 'text-blue-800', 
-    dark: 'text-blue-400' 
+  {
+    version: "1",
+    title: "Initial Release - Core Chess Experience",
+    features: [
+      "Core chess game logic with basic rules.",
+      "Play Modes: Player vs AI, Player vs Player (Friend).",
+      "Hall of Fame to track victories.",
+    ],
   },
-  'black-silver-gray':   { 
-    light: 'text-gray-600', 
-    dark: 'text-gray-400' 
-  },
-  'black-emerald-green': { 
-    light: 'text-emerald-700', 
-    dark: 'text-emerald-500' 
-  },
-};
+];

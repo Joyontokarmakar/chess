@@ -1,22 +1,23 @@
 import React, { useState } from 'react';
-import { GameMode, Theme } from '../types';
-import { AI_PLAYER_NAME } from '../constants';
+import { GameMode, Theme, AIDifficultyLevel } from '../types';
+import { AI_PLAYER_NAME, AI_DIFFICULTY_LEVELS } from '../constants';
 
 interface PlayerNameEntryProps {
   gameMode: GameMode;
-  onSetupComplete: (player1Name: string, player2Name?: string) => void;
-  onBackToMenu: () => void; // This will reset to welcome arena
+  onSetupComplete: (player1Name: string, player2Name?: string, aiDifficulty?: AIDifficultyLevel) => void;
+  onBackToMenu: () => void;
   theme: Theme;
 }
 
 const PlayerNameEntry: React.FC<PlayerNameEntryProps> = ({ gameMode, onSetupComplete, onBackToMenu, theme }) => {
   const [p1Name, setP1Name] = useState<string>('Player 1');
   const [p2Name, setP2Name] = useState<string>('Player 2');
+  const [selectedDifficulty, setSelectedDifficulty] = useState<AIDifficultyLevel>(AIDifficultyLevel.MEDIUM);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (gameMode === 'computer') {
-      onSetupComplete(p1Name.trim() || "Player 1", AI_PLAYER_NAME);
+      onSetupComplete(p1Name.trim() || "Player 1", AI_PLAYER_NAME, selectedDifficulty);
     } else if (gameMode === 'friend') {
       onSetupComplete(p1Name.trim() || "Player 1", p2Name.trim() || "Player 2");
     }
@@ -26,13 +27,15 @@ const PlayerNameEntry: React.FC<PlayerNameEntryProps> = ({ gameMode, onSetupComp
   const titleColorClass = theme === 'dark' ? 'text-slate-100' : 'text-slate-800';
   const titleShadowClass = theme === 'dark' ? '0 0 8px rgba(255,255,255,0.15)' : '0 0 8px rgba(0,0,0,0.1)';
   
+  const labelColorBase = theme === 'dark' ? 'text-slate-300' : 'text-slate-600';
   const labelColorP1 = theme === 'dark' ? 'text-rose-400' : 'text-red-600';
   const labelColorP2 = theme === 'dark' ? 'text-cyan-400' : 'text-blue-600';
   
   const inputBaseClasses = "w-full p-3.5 rounded-lg border outline-none shadow-inner transition-all duration-200 ease-in-out backdrop-blur-sm text-base";
   const inputNormalClasses = `${inputBaseClasses} ${theme === 'dark' ? 'bg-slate-800/60 border-slate-600/70 placeholder-slate-400/80 text-slate-100 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400' : 'bg-gray-50/80 border-gray-400/70 placeholder-gray-500 text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500'}`;
   const inputDisabledClasses = `${inputBaseClasses} ${theme === 'dark' ? 'bg-slate-700/50 border-slate-600/60 text-slate-400 cursor-not-allowed' : 'bg-gray-200/70 border-gray-400/60 text-gray-500 cursor-not-allowed'}`;
-  
+  const selectClasses = `${inputNormalClasses} appearance-none`;
+
   const smallTextColor = theme === 'dark' ? 'text-slate-400' : 'text-slate-500';
   
   const submitButtonClasses = `w-full font-semibold py-3.5 px-6 rounded-lg text-lg shadow-xl hover:shadow-2xl transition-all duration-200 ease-in-out transform hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-opacity-75 ${theme === 'dark' ? 'bg-gradient-to-r from-indigo-500/90 via-purple-600/90 to-pink-600/90 hover:from-indigo-500/95 hover:via-purple-600/95 hover:to-pink-600/95 text-white focus-visible:ring-purple-400 shadow-purple-500/30 hover:shadow-purple-500/40' : 'bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 hover:from-indigo-600 hover:via-purple-700 hover:to-pink-700 text-white focus-visible:ring-purple-400 shadow-purple-600/30 hover:shadow-purple-600/40'}`;
@@ -55,7 +58,7 @@ const PlayerNameEntry: React.FC<PlayerNameEntryProps> = ({ gameMode, onSetupComp
     <div className="min-h-screen flex flex-col items-center justify-center bg-transparent p-4">
       <div className={`backdrop-blur-xl shadow-2xl p-7 sm:p-10 rounded-xl max-w-md w-full ${panelBgClass}`}>
         <h2 className={`text-2xl sm:text-3xl font-bold mb-8 text-center ${titleColorClass}`} style={{ textShadow: titleShadowClass}}>
-          Enter Player Names
+          {gameMode === 'computer' ? 'Setup AI Game' : 'Enter Player Names'}
         </h2>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
@@ -91,19 +94,41 @@ const PlayerNameEntry: React.FC<PlayerNameEntryProps> = ({ gameMode, onSetupComp
           )}
 
           {gameMode === 'computer' && (
-            <div>
-              <label htmlFor="player2Name" className={`block text-sm font-semibold mb-1.5 ${labelColorP2}`}>
-                Player 2 (Black)
-              </label>
-              <input
-                type="text"
-                id="player2Name"
-                value={AI_PLAYER_NAME}
-                disabled
-                className={inputDisabledClasses}
-              />
-               <p className={`text-xs mt-1.5 ${smallTextColor}`}>You are playing against the AI.</p>
-            </div>
+            <>
+              <div>
+                <label htmlFor="player2Name" className={`block text-sm font-semibold mb-1.5 ${labelColorP2}`}>
+                  Player 2 (Black)
+                </label>
+                <input
+                  type="text"
+                  id="player2Name"
+                  value={AI_PLAYER_NAME}
+                  disabled
+                  className={inputDisabledClasses}
+                />
+              </div>
+              <div>
+                <label htmlFor="aiDifficulty" className={`block text-sm font-semibold mb-1.5 ${labelColorBase}`}>
+                  AI Difficulty
+                </label>
+                <div className="relative">
+                  <select
+                    id="aiDifficulty"
+                    value={selectedDifficulty}
+                    onChange={(e) => setSelectedDifficulty(e.target.value as AIDifficultyLevel)}
+                    className={selectClasses}
+                  >
+                    {AI_DIFFICULTY_LEVELS.map(level => (
+                      <option key={level} value={level}>{level}</option>
+                    ))}
+                  </select>
+                  <div className={`pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                  </div>
+                </div>
+                <p className={`text-xs mt-1.5 ${smallTextColor}`}>Harder difficulties may take longer to move.</p>
+              </div>
+            </>
           )}
 
           <button
@@ -115,7 +140,7 @@ const PlayerNameEntry: React.FC<PlayerNameEntryProps> = ({ gameMode, onSetupComp
           </button>
            <button 
             type="button"
-            onClick={onBackToMenu} // This now resets to Welcome Arena
+            onClick={onBackToMenu}
             className={backButtonClasses}
             aria-label="Back to Main Menu"
             >

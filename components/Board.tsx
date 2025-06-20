@@ -1,5 +1,5 @@
 import React from 'react';
-import { BoardState, Position, PlayerColor, Theme, LayoutSettings } from '../types';
+import { BoardState, Position, PlayerColor, Theme, LayoutSettings, AIMove } from '../types';
 import Square from './Square';
 import { getBoardClasses } from '../utils/styleUtils'; 
 
@@ -12,7 +12,9 @@ interface BoardProps {
   kingInCheckPosition: Position | null; 
   theme: Theme;
   layoutSettings: LayoutSettings;
-  lastMove: { from: Position; to: Position } | null; // Added lastMove prop
+  lastMove: { from: Position; to: Position } | null;
+  hintSuggestion: AIMove | null; // For highlighting hints
+  hintKey?: string; // To re-trigger hint animation
 }
 
 const Board: React.FC<BoardProps> = ({
@@ -23,7 +25,9 @@ const Board: React.FC<BoardProps> = ({
   kingInCheckPosition,
   theme,
   layoutSettings,
-  lastMove, // Destructure lastMove
+  lastMove,
+  hintSuggestion,
+  hintKey,
 }) => {
   const currentBoardStyle = getBoardClasses(layoutSettings.boardStyleId, theme);
 
@@ -46,6 +50,9 @@ const Board: React.FC<BoardProps> = ({
           const isLastMoveFromSquare = !!(lastMove && lastMove.from[0] === rowIndex && lastMove.from[1] === colIndex);
           const isLastMoveToSquare = !!(lastMove && lastMove.to[0] === rowIndex && lastMove.to[1] === colIndex);
 
+          const isHintFromSquare = !!(hintSuggestion && hintSuggestion.from[0] === rowIndex && hintSuggestion.from[1] === colIndex);
+          const isHintToSquare = !!(hintSuggestion && hintSuggestion.to[0] === rowIndex && hintSuggestion.to[1] === colIndex);
+
           return (
             <Square
               key={`${rowIndex}-${colIndex}`}
@@ -59,8 +66,12 @@ const Board: React.FC<BoardProps> = ({
               theme={theme}
               boardClasses={currentBoardStyle} 
               layoutSettings={layoutSettings}
-              isLastMoveFromSquare={isLastMoveFromSquare} // Pass down
-              isLastMoveToSquare={isLastMoveToSquare}   // Pass down
+              isLastMoveFromSquare={isLastMoveFromSquare}
+              isLastMoveToSquare={isLastMoveToSquare}
+              lastMoveForFlashKey={lastMove}
+              isHintFromSquare={isHintFromSquare}
+              isHintToSquare={isHintToSquare}
+              hintKey={hintKey}
             />
           );
         })

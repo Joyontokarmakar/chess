@@ -1,29 +1,33 @@
 import React from 'react';
-import { Piece, PlayerColor, Theme, PieceColorOption } from '../types';
-import { PIECE_SYMBOLS } from '../constants';
-import { getPieceClasses } from '../utils/styleUtils'; // Import the utility function
+import { Piece } from '../types';
+import { PIECE_ICON_COMPONENTS } from '../constants';
 
 interface PieceDisplayProps {
   piece: Piece;
-  pieceColorOptionId: PieceColorOption;
-  theme: Theme; 
-  className?: string; // Added optional className prop
+  size: string | number; // e.g., "24px", 24, "80%"
+  color: string; // Hex color string, e.g., "#FFFFFF"
+  className?: string; // For additional wrapper styling if needed
 }
 
-const PieceDisplay: React.FC<PieceDisplayProps> = ({ piece, pieceColorOptionId, theme, className }) => {
-  const symbol = PIECE_SYMBOLS[piece.color][piece.type];
-  
-  // Use getPieceClasses to determine the styling based on the new prop
-  const pieceStyle = getPieceClasses(pieceColorOptionId, piece.color, theme);
+const PieceDisplay: React.FC<PieceDisplayProps> = ({ piece, size, color, className }) => {
+  const IconComponent = PIECE_ICON_COMPONENTS[piece.type];
 
+  if (!IconComponent) {
+    // Fallback for an unknown piece type, though this shouldn't happen with valid PieceType
+    return <span className={className}>?</span>;
+  }
+  
+  // The 'chess-icon-display' class can be used for common layout needs,
+  // but sizing and color are primarily controlled by props.
+  // The className prop allows for additional Tailwind classes, e.g., for margins.
   return (
-    <span 
-      className={`chess-piece ${pieceStyle.colorClass} ${className || ''}`} // Apply the determined class and any passed className
-      role="img" 
+    <IconComponent 
+      size={size} 
+      color={color}
+      className={`chess-icon-display ${className || ''}`} 
       aria-label={`${piece.color} ${piece.type}`}
-    >
-      {symbol}
-    </span>
+      style={{ verticalAlign: 'middle' }} // Ensures good alignment if used inline
+    />
   );
 };
 
