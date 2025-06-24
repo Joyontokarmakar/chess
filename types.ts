@@ -124,6 +124,8 @@ export interface LayoutSettings {
   whitePieceColor?: string;
   blackPieceColor?: string;
   isSoundEnabled: boolean;
+  showResignButton: boolean; // Added
+  showGameToasts: boolean;   // Added
 }
 
 export const TIME_OPTIONS = {
@@ -185,4 +187,14 @@ export interface ChangelogVersion {
   title?: string;
   date?: string; // Optional: e.g., "2024-07-28"
   features: string[]; // Each string can be a main point or a sub-point starting with "  • "
+}
+
+// --- Toast Notification Type ---
+export type ToastType = 'info' | 'success' | 'warning' | 'error' | 'check';
+
+export interface ToastItem {
+  id: string;
+  message: string;
+  type: ToastType;
+  duration?: number; // Optional duration in ms
 }

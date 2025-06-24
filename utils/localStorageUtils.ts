@@ -172,16 +172,18 @@ export function getLayoutSettings(): LayoutSettings | null {
     if (settingsJson) {
       const parsed = JSON.parse(settingsJson) as Partial<LayoutSettings>; // Partial for backward compatibility
       return {
-        boardStyleId: parsed.boardStyleId || 'default-dark', // Default if missing
+        boardStyleId: parsed.boardStyleId || 'default-dark',
         whitePieceColor: parsed.whitePieceColor,
         blackPieceColor: parsed.blackPieceColor,
-        isSoundEnabled: typeof parsed.isSoundEnabled === 'boolean' ? parsed.isSoundEnabled : true, // Default to true
+        isSoundEnabled: typeof parsed.isSoundEnabled === 'boolean' ? parsed.isSoundEnabled : true,
+        showResignButton: typeof parsed.showResignButton === 'boolean' ? parsed.showResignButton : true, // Default to true
+        showGameToasts: typeof parsed.showGameToasts === 'boolean' ? parsed.showGameToasts : true,     // Default to true
       };
     }
   } catch (error) {
     console.error("Error retrieving layout settings:", error);
   }
-  return null; // Return null if no settings found, App.tsx will provide defaults
+  return null;
 }
 
 export function setLayoutSettings(settings: LayoutSettings): void {

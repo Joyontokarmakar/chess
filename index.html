@@ -146,6 +146,49 @@
       100% { opacity: 0; transform: scale(1); }
     }
 
+    /* Confetti Animation */
+    @keyframes confetti-fall {
+      0% {
+        transform: translateY(-10vh) rotate(0deg);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(110vh) rotate(720deg); /* Fall further down */
+        opacity: 0;
+      }
+    }
+    .confetti-piece {
+      /* Base styles handled by inline styles in component for randomization */
+      will-change: transform, opacity; /* Performance hint */
+    }
+
+    /* Toast Animations */
+    @keyframes toast-slide-in-right {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    @keyframes toast-fade-out {
+      from {
+        opacity: 1;
+      }
+      to {
+        opacity: 0;
+        transform: translateX(100%); /* Optional: slide out too */
+      }
+    }
+    .toast-enter {
+      animation: toast-slide-in-right 0.3s ease-out forwards;
+    }
+    .toast-exit {
+      animation: toast-fade-out 0.3s ease-in forwards;
+    }
+
   </style>
 <script type="importmap">
 {

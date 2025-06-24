@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { PieceType, PlayerColor, AIDifficultyLevel, Puzzle, PuzzleDifficulty, CastlingRights, BoardState, Piece, Position, ChangelogVersion } from './types';
 import { FaChessKing, FaChessQueen, FaChessRook, FaChessBishop, FaChessKnight, FaChessPawn } from 'react-icons/fa';
@@ -127,7 +128,7 @@ export function createInitialBoard(fen?: string): BoardState {
 
 
 export const SOUND_MOVE = 'https://actions.google.com/sounds/v1/sports/wooden_bat_hits_baseball_run.ogg';
-export const SOUND_CAPTURE = 'https://actions.google.com/sounds/v1/sports/pool_table_break.ogg';
+export const SOUND_CAPTURE = 'https://actions.google.com/sounds/v1/doors/screen_door_close.ogg';
 export const SOUND_WIN = 'https://actions.google.com/sounds/v1/cartoon/magic_chime.ogg';
 
 
@@ -331,6 +332,21 @@ export const PUZZLES: Puzzle[] = [
 
 // --- Changelog Data ---
 export const CHANGELOG_DATA: ChangelogVersion[] = [
+  {
+    version: "4.1",
+    title: "UI/UX Enhancements & Customization",
+    date: "2024-08-01", // Example date
+    features: [
+      "New! Custom Resign Confirmation Modal: Clearer confirmation before resigning.",
+      "New! Game Over Overlay: Displays winner/draw status with a celebratory confetti animation.",
+      "New! Game Update Toaster Notifications: Game events (check, checkmate, turn changes) now appear as toasts, removing the bottom message box for a cleaner interface.",
+      "New! In-Game Player Rename: Option to rename players during 'Friend' or 'Computer' games via Player Display Panel.",
+      "New! Game Settings Toggles:",
+      "  • Show/Hide Resign Buttons: Customize visibility of resign buttons in the game area.",
+      "  • Show/Hide Game Update Toasts: Enable or disable toaster notifications.",
+      "UI Refinement: Removed the game update box from below the board to improve screen space.",
+    ],
+  },
   {
     version: "4",
     title: "Major Gameplay Expansion & AI Enhancements",

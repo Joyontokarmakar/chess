@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { HallOfFameEntry, Theme, GameOverReason } from '../types'; 
 import { getHallOfFameEntries, clearHallOfFame as clearStoredHallOfFame } from '../utils/localStorageUtils';
@@ -150,7 +151,7 @@ const HallOfFame: React.FC<HallOfFameProps> = ({ onBackToMenu, theme }) => {
         </div>
       </div>
       <footer className={`absolute bottom-4 text-xs ${footerTextColor} select-none`}>
-        <p>&copy; 2025 Joyonto Karmakar. All Rights Reserved</p>
+        <p>{'©'} 2025 Joyonto Karmakar. All Rights Reserved</p>
       </footer>
     </div>
   );

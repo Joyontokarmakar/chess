@@ -48,7 +48,7 @@ const PlayerNameEntry: React.FC<PlayerNameEntryProps> = ({ gameMode, onSetupComp
         <div className="min-h-screen flex flex-col items-center justify-center bg-transparent p-4">
             <p className={titleColorClass}>Redirecting to online game setup...</p>
              <footer className={`absolute bottom-4 text-xs ${footerTextColor} select-none`}>
-                <p>&copy; 2025 Joyonto Karmakar. All Rights Reserved</p>
+                <p>{'©'} 2025 Joyonto Karmakar. All Rights Reserved</p>
             </footer>
         </div>
     );
@@ -149,7 +149,7 @@ const PlayerNameEntry: React.FC<PlayerNameEntryProps> = ({ gameMode, onSetupComp
         </form>
       </div>
       <footer className={`absolute bottom-4 text-xs ${footerTextColor} select-none`}>
-        <p>&copy; 2025 Joyonto Karmakar. All Rights Reserved</p>
+        <p>{'©'} 2025 Joyonto Karmakar. All Rights Reserved</p>
       </footer>
     </div>
   );

@@ -72,10 +72,10 @@ const MenuModal: React.FC<MenuModalProps> = ({
         case 'customize_layout':
             return `${commonButtonStyles} bg-purple-600/70 hover:bg-purple-500/80 border-purple-500/50 text-white focus-visible:ring-purple-400`;
         case 'chess_guide':
-        case 'changelog': // Changelog uses similar styling to chess guide
+        case 'changelog': 
             return `${commonButtonStyles} bg-indigo-600/70 hover:bg-indigo-500/80 border-indigo-500/50 text-white focus-visible:ring-indigo-400`;
         case 'game_settings':
-            return `${commonButtonStyles} bg-sky-700/70 hover:bg-sky-600/80 border-sky-600/50 text-white focus-visible:ring-sky-500`;
+            return `${commonButtonStyles} bg-cyan-600/70 hover:bg-cyan-500/80 border-cyan-500/50 text-white focus-visible:ring-cyan-400`;
         case 'puzzle_mode':
              return `${commonButtonStyles} bg-lime-600/70 hover:bg-lime-500/80 border-lime-500/50 text-white focus-visible:ring-lime-400`;
         case 'themeContainer': 
@@ -101,10 +101,10 @@ const MenuModal: React.FC<MenuModalProps> = ({
         case 'customize_layout':
             return `${commonButtonStyles} bg-purple-500/80 hover:bg-purple-600/90 border-purple-400/60 text-white focus-visible:ring-purple-500`;
         case 'chess_guide':
-        case 'changelog': // Changelog uses similar styling
+        case 'changelog': 
             return `${commonButtonStyles} bg-indigo-500/80 hover:bg-indigo-600/90 border-indigo-400/60 text-white focus-visible:ring-indigo-500`;
         case 'game_settings':
-            return `${commonButtonStyles} bg-sky-700/80 hover:bg-sky-800/90 border-sky-600/60 text-white focus-visible:ring-sky-600`;
+            return `${commonButtonStyles} bg-cyan-500/80 hover:bg-cyan-600/90 border-cyan-400/60 text-white focus-visible:ring-cyan-500`;
         case 'puzzle_mode':
             return `${commonButtonStyles} bg-lime-500/80 hover:bg-lime-600/90 border-lime-400/60 text-white focus-visible:ring-lime-500`;
         case 'themeContainer': 
@@ -157,13 +157,26 @@ const MenuModal: React.FC<MenuModalProps> = ({
   
   const handleOpenChangelog = () => {
     onOpenChangelog();
-    // onClose(); // Keep menu open if changelog is also a modal that overlays, or close if it replaces menu. Let App.tsx manage.
   };
 
   const handleSoundToggle = () => {
     onLayoutSettingsChange({
       ...layoutSettings,
       isSoundEnabled: !layoutSettings.isSoundEnabled,
+    });
+  };
+  
+  const handleResignButtonToggle = () => {
+    onLayoutSettingsChange({
+      ...layoutSettings,
+      showResignButton: !layoutSettings.showResignButton,
+    });
+  };
+
+  const handleToastsToggle = () => {
+    onLayoutSettingsChange({
+      ...layoutSettings,
+      showGameToasts: !layoutSettings.showGameToasts,
     });
   };
 
@@ -209,7 +222,7 @@ const MenuModal: React.FC<MenuModalProps> = ({
                 className={getButtonThemeClasses('game_settings')}
                 aria-label="Game Settings"
               >
-                <span className="mr-2 text-lg">⚙️</span> Game Settings
+                <span className="mr-2 text-lg">🛠️</span> Game Settings
               </button>
               <button
                 onClick={() => handleModeSelection('hof')}
@@ -322,7 +335,7 @@ const MenuModal: React.FC<MenuModalProps> = ({
                 <div className={`p-0 rounded-lg border-none ${getButtonThemeClasses('sound_toggle_container', '')}`}>
                     <div className="flex items-center justify-between w-full p-2">
                         <span className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
-                            Game Sounds: {layoutSettings.isSoundEnabled ? 'On' : 'Off'}
+                            Sounds: {layoutSettings.isSoundEnabled ? 'On' : 'Off'}
                         </span>
                         <input
                             type="checkbox"
@@ -334,6 +347,48 @@ const MenuModal: React.FC<MenuModalProps> = ({
                         />
                         <label htmlFor="sound-switch" className="theme-switch-label"> 
                             <span className="theme-switch-icon">{layoutSettings.isSoundEnabled ? '🔊' : '🔇'}</span>
+                            <span className="theme-switch-icon" style={{opacity:0}}>X</span> 
+                            <span className="theme-switch-ball"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div className={`p-0 rounded-lg border-none ${getButtonThemeClasses('sound_toggle_container', '')}`}>
+                    <div className="flex items-center justify-between w-full p-2">
+                        <span className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                            Resign Buttons: {layoutSettings.showResignButton ? 'On' : 'Off'}
+                        </span>
+                        <input
+                            type="checkbox"
+                            id="resign-button-switch"
+                            className="theme-switch-checkbox" 
+                            checked={layoutSettings.showResignButton}
+                            onChange={handleResignButtonToggle}
+                            aria-label="Toggle resign buttons"
+                        />
+                        <label htmlFor="resign-button-switch" className="theme-switch-label"> 
+                            <span className="theme-switch-icon">{layoutSettings.showResignButton ? '🏳️' : '🚫'}</span>
+                            <span className="theme-switch-icon" style={{opacity:0}}>X</span> 
+                            <span className="theme-switch-ball"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div className={`p-0 rounded-lg border-none ${getButtonThemeClasses('sound_toggle_container', '')}`}>
+                    <div className="flex items-center justify-between w-full p-2">
+                        <span className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                            Game Toasts: {layoutSettings.showGameToasts ? 'On' : 'Off'}
+                        </span>
+                        <input
+                            type="checkbox"
+                            id="toasts-switch"
+                            className="theme-switch-checkbox" 
+                            checked={layoutSettings.showGameToasts}
+                            onChange={handleToastsToggle}
+                            aria-label="Toggle game update toasts"
+                        />
+                        <label htmlFor="toasts-switch" className="theme-switch-label"> 
+                            <span className="theme-switch-icon">{layoutSettings.showGameToasts ? '🔔' : '🔕'}</span>
                             <span className="theme-switch-icon" style={{opacity:0}}>X</span> 
                             <span className="theme-switch-ball"></span>
                         </label>

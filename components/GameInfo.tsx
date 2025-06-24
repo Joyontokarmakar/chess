@@ -1,66 +1,33 @@
 import React from 'react';
-import { PlayerColor, GameStatus, Theme } from '../types'; 
+import { Theme } from '../types'; 
 
 interface GameInfoProps {
-  currentPlayerName: string; 
-  gameStatus: GameStatus;
-  onReset: () => void; // This will now trigger opening the menu. Full reset logic in App.tsx via Menu.
-  isGameOver: boolean;
+  turnMessage: string; // Changed from currentPlayerName, gameStatus, isGameOver
+  onReset: () => void;
   theme: Theme;
 }
 
-const GameInfo: React.FC<GameInfoProps> = ({ currentPlayerName, gameStatus, onReset, isGameOver, theme }) => {
-  const infoTitle = isGameOver ? "Game Over!" : "Game Updates";
-
-  let messageColorClass = '';
-  let panelBgClass = '';
-  let titleColorClass = '';
-  let resetBtnClass = '';
-  let titleShadowClass = '';
-
-  if (theme === 'dark') {
-    messageColorClass = 'text-slate-300';
-    panelBgClass = 'bg-slate-700/50 backdrop-blur-xl border border-slate-500/40 shadow-black/40';
-    titleColorClass = 'text-slate-100';
-    titleShadowClass = '0 0 8px rgba(255,255,255,0.1)';
-    resetBtnClass = 'bg-gradient-to-r from-red-600/90 to-rose-700/90 hover:from-red-500/95 hover:to-rose-600/95 text-white focus-visible:ring-rose-400 shadow-lg hover:shadow-rose-500/40';
-    if (gameStatus.winner) {
-      messageColorClass = gameStatus.winner === PlayerColor.WHITE ? 'text-rose-400 font-semibold' : 'text-cyan-400 font-semibold';
-    } else if (gameStatus.message.toLowerCase().includes('checkmate')) {
-      messageColorClass = 'text-red-400 font-bold';
-    } else if (gameStatus.message.toLowerCase().includes('stalemate')) {
-      messageColorClass = 'text-sky-400 font-semibold';
-    } else if (gameStatus.message.toLowerCase().includes('check!')) {
-      messageColorClass = 'text-amber-400 font-semibold';
-    }
-  } else { // Light theme
-    messageColorClass = 'text-slate-600';
-    panelBgClass = 'bg-white/70 backdrop-blur-xl border border-gray-300/60 shadow-gray-400/30';
-    titleColorClass = 'text-slate-800';
-    titleShadowClass = '0 0 6px rgba(0,0,0,0.1)';
-    resetBtnClass = 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white focus-visible:ring-rose-400 shadow-lg hover:shadow-rose-600/40';
-     if (gameStatus.winner) {
-      messageColorClass = gameStatus.winner === PlayerColor.WHITE ? 'text-red-600 font-bold' : 'text-blue-600 font-bold';
-    } else if (gameStatus.message.toLowerCase().includes('checkmate')) {
-      messageColorClass = 'text-red-700 font-extrabold';
-    } else if (gameStatus.message.toLowerCase().includes('stalemate')) {
-      messageColorClass = 'text-sky-700 font-bold';
-    } else if (gameStatus.message.toLowerCase().includes('check!')) {
-      messageColorClass = 'text-amber-600 font-bold';
-    }
-  }
-
+const GameInfo: React.FC<GameInfoProps> = ({ turnMessage, onReset, theme }) => {
+  // Removed title, messageColorClass, panelBgClass adjustments based on gameStatus.winner or specific messages
+  // Panel styling is now more consistent for its reduced role.
+  const panelBgClass = theme === 'dark' ? 'bg-slate-700/50 backdrop-blur-xl border border-slate-500/40 shadow-black/40' : 'bg-white/70 backdrop-blur-xl border-gray-300/60 shadow-gray-400/30';
+  const turnMessageColorClass = theme === 'dark' ? 'text-slate-200' : 'text-slate-700'; // General color for turn info
+  const titleShadowClass = theme === 'dark' ? '0 0 8px rgba(255,255,255,0.1)' : '0 0 6px rgba(0,0,0,0.1)';
+  const resetBtnClass = theme === 'dark' 
+    ? 'bg-gradient-to-r from-sky-600/90 to-blue-700/90 hover:from-sky-500/95 hover:to-blue-600/95 text-white focus-visible:ring-blue-400 shadow-lg hover:shadow-blue-500/40'
+    : 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white focus-visible:ring-blue-400 shadow-lg hover:shadow-blue-600/40';
+  
+  // The main title "Game Updates" or "Game Over!" is removed.
+  // The dynamic gameStatus.message paragraph is removed.
 
   return (
     <div className={`p-2 sm:p-3 shadow-xl w-full max-w-md !mt-5 text-center rounded-xl ${panelBgClass}`}>
-      <h2 className={`text-lg sm:text-xl font-bold mb-1.5 ${titleColorClass}`} style={{textShadow: titleShadowClass}}>
-        {infoTitle}
-      </h2>
       <p 
-        className={`text-xs sm:text-sm mb-2 min-h-[2rem] flex items-center justify-center font-medium px-2 ${messageColorClass}`}
-        aria-live="polite"
+        className={`text-sm sm:text-base mb-2 min-h-[1.5rem] flex items-center justify-center font-semibold px-2 ${turnMessageColorClass}`}
+        style={{textShadow: titleShadowClass}}
+        aria-live="polite" // Still good for accessibility of turn changes
       >
-        {gameStatus.message}
+        {turnMessage}
       </p>
       <button
         onClick={onReset} 

@@ -1,11 +1,12 @@
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { BoardState, PlayerColor, Position, PieceType, CastlingRights, GameStatus, Piece, GameMode, AIMove, OnlineGameState, Theme, SavedGame, LayoutSettings, GameOverReason, TIME_OPTIONS, AIDifficultyLevel, MoveHistoryEntry, Puzzle, PuzzleSolutionMove, BoardStyleId } from './types';
-import { createInitialBoard, INITIAL_CASTLING_RIGHTS, AI_PLAYER_NAME, SOUND_MOVE, SOUND_CAPTURE, SOUND_WIN, PUZZLES, parseFEN } from './constants';
+import { BoardState, PlayerColor, Position, PieceType, CastlingRights, GameStatus, Piece, GameMode, AIMove, OnlineGameState, Theme, SavedGame, LayoutSettings, GameOverReason, TIME_OPTIONS, AIDifficultyLevel, MoveHistoryEntry, Puzzle, PuzzleSolutionMove, BoardStyleId, ToastItem, ToastType } from './types';
+import { createInitialBoard, INITIAL_CASTLING_RIGHTS, AI_PLAYER_NAME, SOUND_MOVE, SOUND_CAPTURE, SOUND_WIN, PUZZLES, parseFEN, CHANGELOG_DATA } from './constants';
 import Board from './components/Board';
-import GameInfo from './components/GameInfo';
+// import GameInfo from './components/GameInfo'; // GameInfo is no longer rendered in main game area
 import PromotionModal from './components/PromotionModal';
-import PlayerDisplayPanel from './components/PlayerDisplayPanel';
+import { PlayerDisplayPanel } from './components/PlayerDisplayPanel'; 
 import MenuModal from './components/MenuModal'; 
 import PlayerNameEntry from './components/PlayerNameEntry';
 import OnlineGameSetup from './components/OnlineGameSetup';
@@ -16,10 +17,15 @@ import LayoutCustomizationModal from './components/LayoutCustomizationModal';
 import TimeModeSelectionModal from './components/TimeModeSelectionModal'; 
 import ChessGuide from './components/ChessGuide'; 
 import OnlineWarningModal from './components/OnlineWarningModal';
+import ResignConfirmationModal from './components/ResignConfirmationModal'; 
+import GameOverOverlay from './components/GameOverOverlay'; 
 import PieceDisplay from './components/PieceDisplay';
-import GameControls from './components/GameControls'; // New for Hint/Undo
-import PuzzleControls from './components/PuzzleControls'; // New for Puzzles
-import ChangelogModal from './components/ChangelogModal'; // Added for Game Updates
+import GameControls from './components/GameControls'; 
+import PuzzleControls from './components/PuzzleControls'; 
+import ChangelogModal from './components/ChangelogModal';
+import ToastContainer from './components/ToastContainer';
+import RenamePlayerModal from './components/RenamePlayerModal'; // Added
+import { FaFlag } from 'react-icons/fa';
 
 import { getComputerMove } from './utils/geminiApi';
 import { 
@@ -56,7 +62,7 @@ interface UpdateGameStatusReturn {
 }
 
 type WelcomeArenaMenuItem = {
-  id: GameMode | 'hof' | 'puzzle'; // Added 'puzzle'
+  id: GameMode | 'hof' | 'puzzle'; 
   label: string;
   icon: string | React.ReactNode; 
   baseColor: string;
@@ -98,7 +104,7 @@ const App: React.FC = () => {
   const [enPassantTarget, setEnPassantTarget] = useState<Position | null>(null);
   const [promotionSquare, setPromotionSquare] = useState<Position | null>(null);
   const [kingInCheckPosition, setKingInCheckPosition] = useState<Position | null>(null);
-  const [gameStatus, setGameStatus] = useState<GameStatus>({ message: `Open menu or select a mode to start.`, isGameOver: false });
+  const [gameStatus, setGameStatus] = useState<GameStatus>({ message: `Open menu or select a mode to start.`, isGameOver: false }); // message here is a fallback for console/debug
   const [lastMove, setLastMove] = useState<{ from: Position; to: Position } | null>(null);
 
 
@@ -130,23 +136,62 @@ const App: React.FC = () => {
     whitePieceColor: undefined,
     blackPieceColor: undefined,
     isSoundEnabled: true,
+    showResignButton: true, // New default
+    showGameToasts: true,    // New default
   };
   const [layoutSettings, setLayoutSettings] = useState<LayoutSettings>(initialLayoutSettings);
   const [isLayoutModalOpen, setIsLayoutModalOpen] = useState(false);
   const [isChessGuideOpen, setIsChessGuideOpen] = useState(false); 
-  const [isChangelogModalOpen, setIsChangelogModalOpen] = useState(false); // State for Changelog Modal
+  const [isChangelogModalOpen, setIsChangelogModalOpen] = useState(false); 
 
 
   // New states for features
   const [moveHistory, setMoveHistory] = useState<MoveHistoryEntry[]>([]);
   const [hintSuggestion, setHintSuggestion] = useState<AIMove | null>(null);
-  const [hintKey, setHintKey] = useState<string>(''); // To re-trigger hint animation
+  const [hintKey, setHintKey] = useState<string>(''); 
 
   // Puzzle Mode states
   const [currentPuzzleIndex, setCurrentPuzzleIndex] = useState<number>(0);
   const [currentPuzzle, setCurrentPuzzle] = useState<Puzzle | null>(null);
   const [puzzleSolutionStep, setPuzzleSolutionStep] = useState<number>(0);
-  const [puzzleMessage, setPuzzleMessage] = useState<string>('');
+
+  // Resign Modal states
+  const [isResignModalOpen, setIsResignModalOpen] = useState<boolean>(false);
+  const [playerAttemptingResign, setPlayerAttemptingResign] = useState<PlayerColor | null>(null);
+  
+  // Rename Player Modal states
+  const [isRenameModalOpen, setIsRenameModalOpen] = useState<boolean>(false);
+  const [playerToRename, setPlayerToRename] = useState<PlayerColor | null>(null);
+
+
+  // Toast states
+  const [activeToasts, setActiveToasts] = useState<ToastItem[]>([]);
+
+  const addToast = useCallback((message: string, type: ToastType = 'info', duration: number = 4000) => {
+    if (!layoutSettings.showGameToasts) return; // Check global setting
+
+    const id = Date.now().toString() + Math.random().toString(36).substring(2,7);
+    setActiveToasts(prevToasts => {
+        const newToasts = [...prevToasts, { id, message, type, duration }];
+        return newToasts.slice(-5); 
+    });
+  }, [layoutSettings.showGameToasts]); // Add layoutSettings.showGameToasts as a dependency
+
+  const removeToast = useCallback((id: string) => {
+    setActiveToasts(prevToasts => prevToasts.filter(toast => toast.id !== id));
+  }, []);
+  
+  const determineToastType = (status: GameStatus): ToastType => {
+      if (status.reason === 'checkmate' || status.winner) return 'success';
+      if (status.message.toLowerCase().includes('check!')) return 'check';
+      if (status.reason === 'stalemate') return 'info';
+      if (status.message.toLowerCase().includes('error') || 
+          status.message.toLowerCase().includes('could not move') ||
+          status.message.toLowerCase().includes('illegal move')) return 'error';
+      if (status.message.toLowerCase().includes('thinking')) return 'info'; 
+      if (status.message.toLowerCase().includes('hint')) return 'info';
+      return 'info';
+  };
 
 
   const handleToggleChessGuide = (isOpen: boolean) => {
@@ -185,8 +230,8 @@ const App: React.FC = () => {
         setIsGameSetupPending(false);
         setIsChessGuideOpen(false); 
         setIsChangelogModalOpen(false);
-        setCurrentPuzzle(null); // Reset puzzle
-        setPuzzleMessage('');
+        setCurrentPuzzle(null); 
+        setIsTimeModeSelectionOpen(false); 
     }
 
     setBoardState(createInitialBoard());
@@ -199,7 +244,11 @@ const App: React.FC = () => {
     setKingInCheckPosition(null);
     setCapturedByWhite([]);
     setCapturedByBlack([]);
-    setGameStatus({ message: softResetForModeChange ? "Initializing new game..." : `Open menu or select a mode to start a new game.`, isGameOver: false });
+    const initialMessage = softResetForModeChange ? "Initializing new game..." : `Open menu or select a mode to start a new game.`;
+    setGameStatus({ message: initialMessage, isGameOver: false });
+    if (!softResetForModeChange) addToast(initialMessage, 'info');
+
+
     setIsComputerThinking(false);
     setLastMove(null);
     setHasWinSoundPlayedThisGame(false);
@@ -215,7 +264,11 @@ const App: React.FC = () => {
     setLocalPlayerColorForStorage(null);
     setIsOnlineGameReadyForStorage(false);
     lastMoveByRef.current = null;
-  }, []);
+    setIsResignModalOpen(false); 
+    setPlayerAttemptingResign(null);
+    setIsRenameModalOpen(false);
+    setPlayerToRename(null);
+  }, [addToast]);
 
   const handleLogoClick = () => {
     resetGameToWelcomeArena();
@@ -235,7 +288,12 @@ const App: React.FC = () => {
       setEnPassantTarget(gameStateFromStorage.enPassantTarget);
       setCapturedByWhite(gameStateFromStorage.capturedByWhite);
       setCapturedByBlack(gameStateFromStorage.capturedByBlack);
+      
+      if (gameStateFromStorage.gameStatus.message !== gameStatus.message || gameStateFromStorage.gameStatus.isGameOver !== gameStatus.isGameOver) {
+        addToast(gameStateFromStorage.gameStatus.message, determineToastType(gameStateFromStorage.gameStatus));
+      }
       setGameStatus(gameStateFromStorage.gameStatus);
+
       setPlayer1Name(gameStateFromStorage.player1Name);
       setPlayer2Name(gameStateFromStorage.player2Name || (localPlayerColorForStorage === PlayerColor.WHITE ? "Waiting..." : player2Name));
       setIsOnlineGameReadyForStorage(gameStateFromStorage.isGameReady);
@@ -245,13 +303,13 @@ const App: React.FC = () => {
       setPlayer1TimeLeft(gameStateFromStorage.player1TimeLeft);
       setPlayer2TimeLeft(gameStateFromStorage.player2TimeLeft);
       setGameStartTimeStamp(gameStateFromStorage.gameStartTimeStamp);
-      setMoveHistory([]); // Undo not supported for online for now
+      setMoveHistory([]); 
        if (gameStateFromStorage.gameStatus.isGameOver && gameStateFromStorage.gameStatus.winner && !hasWinSoundPlayedThisGame) {
         playSound(SOUND_WIN, layoutSettings.isSoundEnabled);
         setHasWinSoundPlayedThisGame(true);
       }
     }
-  }, [onlineGameIdForStorage, localPlayerColorForStorage, player2Name, hasWinSoundPlayedThisGame, layoutSettings.isSoundEnabled]);
+  }, [onlineGameIdForStorage, localPlayerColorForStorage, player2Name, hasWinSoundPlayedThisGame, layoutSettings.isSoundEnabled, addToast, gameStatus]);
 
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
@@ -308,11 +366,14 @@ const App: React.FC = () => {
     } else if (isStalemate(board, opponentColor, currentCR, currentEPT)) {
         gameStatusResult = { message: "A hard-fought Stalemate! The game is a draw.", isGameOver: true, reason: 'stalemate' };
     } else {
+        const nextPlayerName = opponentColor === PlayerColor.WHITE ? player1Name : player2Name;
+        const turnMsg = `${nextPlayerName}'s turn.`;
+        statusMsg = moveMessagePreamble ? `${moveMessagePreamble}. ${turnMsg}` : turnMsg;
         gameStatusResult = { message: statusMsg, isGameOver: false };
     }
     
     if (gameStatusResult.isGameOver && !hasWinSoundPlayedThisGame) {
-      if (gameStatusResult.winner) { 
+      if (gameStatusResult.winner || gameStatusResult.reason === 'stalemate') { 
         playSound(SOUND_WIN, layoutSettings.isSoundEnabled);
         setHasWinSoundPlayedThisGame(true);
       }
@@ -329,15 +390,17 @@ const App: React.FC = () => {
             gameStatusResult.reason || (gameStatusResult.winner ? undefined : 'draw')
         );
     }
-
-    setGameStatus(gameStatusResult); setKingInCheckPosition(newKingInCheckPos);
+    
+    addToast(gameStatusResult.message, determineToastType(gameStatusResult));
+    setGameStatus(gameStatusResult); 
+    setKingInCheckPosition(newKingInCheckPos);
     return { gameStatusResult, newKingInCheckPos }; 
-  }, [player1Name, player2Name, gameMode, gameStartTimeStamp, hasWinSoundPlayedThisGame, layoutSettings.isSoundEnabled]); 
+  }, [player1Name, player2Name, gameMode, gameStartTimeStamp, hasWinSoundPlayedThisGame, layoutSettings.isSoundEnabled, addToast]); 
 
 
   useEffect(() => {
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-    if (!timeLimitPerPlayer || gameStatus.isGameOver || promotionSquare || gameMode === 'puzzle') {
+    if (!timeLimitPerPlayer || gameStatus.isGameOver || promotionSquare || isResignModalOpen || gameMode === 'puzzle') {
       return;
     }
 
@@ -364,7 +427,26 @@ const App: React.FC = () => {
       }
       
       if (gameMode === 'online' && onlineGameIdForStorage) {
-          // Online timer updates handled via storage sync
+          const currentOnlineState = getOnlineGameState(onlineGameIdForStorage);
+            if (currentOnlineState) {
+                const updatedOnlineState: OnlineGameState = {
+                    ...currentOnlineState,
+                    player1TimeLeft: newTimeLeftP1,
+                    player2TimeLeft: newTimeLeftP2,
+                };
+                if(currentPlayer === localPlayerColorForStorage) {
+                    setOnlineGameState(onlineGameIdForStorage, updatedOnlineState);
+                }
+            }
+          if (timeoutOccurred && timedOutPlayer) {
+            if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+            const { gameStatusResult: finalGameStatus } = await updateGameStatus(boardState, timedOutPlayer === PlayerColor.WHITE ? PlayerColor.BLACK : PlayerColor.WHITE, castlingRights, enPassantTarget, 'timeout');
+            const finalOnlineState = getOnlineGameState(onlineGameIdForStorage);
+            if(finalOnlineState) {
+                setOnlineGameState(onlineGameIdForStorage, {...finalOnlineState, gameStatus: finalGameStatus, player1TimeLeft: newTimeLeftP1, player2TimeLeft: newTimeLeftP2, lastMoveBy: timedOutPlayer});
+                lastMoveByRef.current = timedOutPlayer;
+            }
+          }
       } else if (timeoutOccurred && timedOutPlayer) { 
           if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
           updateGameStatus(boardState, timedOutPlayer === PlayerColor.WHITE ? PlayerColor.BLACK : PlayerColor.WHITE, castlingRights, enPassantTarget, 'timeout');
@@ -374,7 +456,7 @@ const App: React.FC = () => {
     return () => {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     };
-  }, [currentPlayer, timeLimitPerPlayer, gameStatus.isGameOver, promotionSquare, boardState, castlingRights, enPassantTarget, updateGameStatus, gameMode, onlineGameIdForStorage, player1TimeLeft, player2TimeLeft]);
+  }, [currentPlayer, timeLimitPerPlayer, gameStatus.isGameOver, promotionSquare, isResignModalOpen, boardState, castlingRights, enPassantTarget, updateGameStatus, gameMode, onlineGameIdForStorage, player1TimeLeft, player2TimeLeft, localPlayerColorForStorage]);
 
 
   const getCurrentPlayerRealNameForDisplay = useCallback(() => {
@@ -385,9 +467,8 @@ const App: React.FC = () => {
     return currentPlayer === PlayerColor.WHITE ? player2Name : player1Name;
   }, [currentPlayer, player1Name, player2Name]);
   
-  // Helper to construct history entry
   const createHistoryEntry = (): MoveHistoryEntry => ({
-    boardState: createDeepBoardCopy(boardState), // Deep copy
+    boardState: createDeepBoardCopy(boardState), 
     currentPlayer, castlingRights: JSON.parse(JSON.stringify(castlingRights)), enPassantTarget,
     capturedByWhite: [...capturedByWhite], capturedByBlack: [...capturedByBlack],
     gameStatus: {...gameStatus}, kingInCheckPosition, lastMove: lastMove ? {...lastMove} : null,
@@ -395,11 +476,11 @@ const App: React.FC = () => {
   });
 
   const applyMove = useCallback(async (from: Position, to: Position, promotionType?: PieceType, isPuzzleMove: boolean = false) => {
-    if (!isPuzzleMove) { // Don't save history for puzzle internal moves
+    if (!isPuzzleMove) { 
         const historyEntry = createHistoryEntry();
         setMoveHistory(prevHistory => [...prevHistory, historyEntry]);
     }
-    setHintSuggestion(null); // Clear hint on any move attempt
+    setHintSuggestion(null); 
 
     const movingPiece = boardState[from[0]][from[1]];
     if (!movingPiece) return;
@@ -430,29 +511,55 @@ const App: React.FC = () => {
 
     setBoardState(newBoard); setCastlingRights(newCastlingRights); setEnPassantTarget(newEnPassantTarget);
     
-    if (gameMode !== 'online') { 
+    if (gameMode === 'online' && onlineGameIdForStorage && isOnlineGameReadyForStorage) {
+        lastMoveByRef.current = currentPlayer; 
+    } else { 
         lastMoveByRef.current = null; 
     }
 
     if (promSq && !promotionType) {
       setPromotionSquare(promSq);
-      // Online game logic for promotion pending... (omitted for brevity, assume similar to below)
+      if (gameMode === 'online' && onlineGameIdForStorage) {
+        const currentOnlineState = getOnlineGameState(onlineGameIdForStorage);
+        if (currentOnlineState) {
+            const updatedOnlineState: OnlineGameState = {
+                ...currentOnlineState, boardState: newBoard, castlingRights: newCastlingRights, enPassantTarget: newEnPassantTarget,
+                capturedByWhite: newCapturedByWhite, capturedByBlack: newCapturedByBlack, lastMove: newLastMove,
+                player1TimeLeft, player2TimeLeft, 
+                lastMoveBy: currentPlayer,
+            };
+            setOnlineGameState(onlineGameIdForStorage, updatedOnlineState);
+        }
+      }
     } else {
       const nextPlayer = currentPlayer === PlayerColor.WHITE ? PlayerColor.BLACK : PlayerColor.WHITE;
       const { gameStatusResult: finalGameStatus, newKingInCheckPos: finalKcip } = 
           await updateGameStatus(newBoard, currentPlayer, newCastlingRights, newEnPassantTarget, null, moveMessagePreamble);
       
-      // Online game logic update... (omitted for brevity)
+      if (gameMode === 'online' && onlineGameIdForStorage && isOnlineGameReadyForStorage) {
+        const currentOnlineState = getOnlineGameState(onlineGameIdForStorage);
+        if (currentOnlineState) {
+            const updatedOnlineState: OnlineGameState = {
+                ...currentOnlineState, boardState: newBoard, currentPlayer: finalGameStatus.isGameOver ? currentPlayer : nextPlayer, 
+                castlingRights: newCastlingRights, enPassantTarget: newEnPassantTarget,
+                capturedByWhite: newCapturedByWhite, capturedByBlack: newCapturedByBlack, 
+                gameStatus: finalGameStatus, kingInCheckPosition: finalKcip, lastMove: newLastMove,
+                player1TimeLeft, player2TimeLeft, 
+                lastMoveBy: currentPlayer,
+            };
+            setOnlineGameState(onlineGameIdForStorage, updatedOnlineState);
+        }
+      }
       if (!finalGameStatus.isGameOver) setCurrentPlayer(nextPlayer);
     }
     setSelectedPiecePosition(null); setPossibleMoves([]);
   }, [boardState, currentPlayer, castlingRights, enPassantTarget, updateGameStatus, getCurrentPlayerRealNameForDisplay, getOpponentPlayerNameForDisplay, gameMode, onlineGameIdForStorage, capturedByWhite, capturedByBlack, player1Name, player2Name, isOnlineGameReadyForStorage, timeLimitPerPlayer, player1TimeLeft, player2TimeLeft, gameStartTimeStamp, layoutSettings.isSoundEnabled, moveHistory]);
 
   const handleSquareClick = useCallback((pos: Position) => {
-    if (gameStatus.isGameOver || promotionSquare) return;
+    if (gameStatus.isGameOver || promotionSquare || isResignModalOpen || isRenameModalOpen) return;
     if (gameMode === 'computer' && currentPlayer === PlayerColor.BLACK && isComputerThinking) return;
     if (gameMode === 'online' && (!isOnlineGameReadyForStorage || currentPlayer !== localPlayerColorForStorage)) return;
-    if (gameMode === 'puzzle' && currentPuzzle && currentPlayer !== currentPuzzle.playerToMove) return; // Only allow moves for the designated puzzle player
+    if (gameMode === 'puzzle' && currentPuzzle && currentPlayer !== currentPuzzle.playerToMove) return;
 
 
     const piece = boardState[pos[0]][pos[1]];
@@ -464,24 +571,24 @@ const App: React.FC = () => {
             applyMove(selectedPiecePosition, pos); 
         }
       }
-      else { // Clicked on a non-possible move square or an empty square
+      else { 
         setSelectedPiecePosition(null); setPossibleMoves([]);
-        if (piece && piece.color === currentPlayer) { // If clicked on another of own pieces
+        if (piece && piece.color === currentPlayer) { 
           setSelectedPiecePosition(pos);
           setPossibleMoves(getPossibleMoves(boardState, pos, currentPlayer, castlingRights, enPassantTarget));
         }
       }
-    } else if (piece && piece.color === currentPlayer) { // First click on one of own pieces
+    } else if (piece && piece.color === currentPlayer) { 
       setSelectedPiecePosition(pos);
       setPossibleMoves(getPossibleMoves(boardState, pos, currentPlayer, castlingRights, enPassantTarget));
     }
-  }, [boardState, currentPlayer, selectedPiecePosition, possibleMoves, castlingRights, enPassantTarget, gameStatus.isGameOver, promotionSquare, applyMove, gameMode, isComputerThinking, localPlayerColorForStorage, isOnlineGameReadyForStorage, currentPuzzle]);
+  }, [boardState, currentPlayer, selectedPiecePosition, possibleMoves, castlingRights, enPassantTarget, gameStatus.isGameOver, promotionSquare, isResignModalOpen, isRenameModalOpen, applyMove, gameMode, isComputerThinking, localPlayerColorForStorage, isOnlineGameReadyForStorage, currentPuzzle]);
 
   const handlePromotion = useCallback(async (pieceType: PieceType) => {
     if (!promotionSquare) return;
 
     if (gameMode === 'puzzle' && currentPuzzle) {
-        handlePuzzleMove(selectedPiecePosition!, promotionSquare, pieceType); // Assume selectedPiecePosition is the pawn's original square for puzzle logic
+        handlePuzzleMove(selectedPiecePosition!, promotionSquare, pieceType); 
         setPromotionSquare(null);
         return;
     }
@@ -502,21 +609,33 @@ const App: React.FC = () => {
       const { gameStatusResult: finalGameStatus, newKingInCheckPos: kcipAfterPromo } = 
           await updateGameStatus(tempBoard, currentPlayer, castlingRights, enPassantTarget, null, promoMessage);
       
-      // Online game logic... (omitted)
+      if (gameMode === 'online' && onlineGameIdForStorage) {
+         const currentOnlineState = getOnlineGameState(onlineGameIdForStorage);
+         if (currentOnlineState) {
+            const updatedOnlineState: OnlineGameState = {
+                ...currentOnlineState, boardState: tempBoard, currentPlayer: finalGameStatus.isGameOver ? currentPlayer : nextPlayer, 
+                gameStatus: finalGameStatus, kingInCheckPosition: kcipAfterPromo, lastMove, 
+                player1TimeLeft, player2TimeLeft, 
+                lastMoveBy: currentPlayer,
+            };
+            setOnlineGameState(onlineGameIdForStorage, updatedOnlineState);
+            lastMoveByRef.current = currentPlayer;
+         }
+      }
       if (!finalGameStatus.isGameOver) setCurrentPlayer(nextPlayer);
     }
     setPromotionSquare(null); setSelectedPiecePosition(null); setPossibleMoves([]);
-  }, [boardState, promotionSquare, currentPlayer, castlingRights, enPassantTarget, updateGameStatus, getCurrentPlayerRealNameForDisplay, gameMode, onlineGameIdForStorage, capturedByWhite, capturedByBlack, lastMove, player1Name, player2Name, isOnlineGameReadyForStorage, timeLimitPerPlayer, player1TimeLeft, player2TimeLeft, gameStartTimeStamp, moveHistory, currentPuzzle]);
+  }, [boardState, promotionSquare, currentPlayer, castlingRights, enPassantTarget, updateGameStatus, getCurrentPlayerRealNameForDisplay, gameMode, onlineGameIdForStorage, capturedByWhite, capturedByBlack, lastMove, player1Name, player2Name, isOnlineGameReadyForStorage, timeLimitPerPlayer, player1TimeLeft, player2TimeLeft, gameStartTimeStamp, moveHistory, currentPuzzle, selectedPiecePosition]);
 
   useEffect(() => {
-    if (gameMode === 'computer' && currentPlayer === PlayerColor.BLACK && !gameStatus.isGameOver && !promotionSquare && !isComputerThinking) {
+    if (gameMode === 'computer' && currentPlayer === PlayerColor.BLACK && !gameStatus.isGameOver && !promotionSquare && !isResignModalOpen && !isRenameModalOpen && !isComputerThinking) {
       setIsComputerThinking(true);
+      addToast(`${AI_PLAYER_NAME} is thinking...`, 'info', 2500);
       const aiMoveDelay = timeLimitPerPlayer ? Math.max(1000, Math.random() * 2000 + 1000) : 500; 
       setTimeout(() => {
         getComputerMove(boardState, PlayerColor.BLACK, castlingRights, enPassantTarget, aiDifficulty)
           .then((aiMove: AIMove | null) => {
             if (aiMove && !gameStatus.isGameOver) { 
-              // Basic validation for AI move before applying
               const pieceAtFrom = boardState[aiMove.from[0]]?.[aiMove.from[1]];
               if (pieceAtFrom && pieceAtFrom.color === PlayerColor.BLACK) {
                   const AIsPossibleMoves = getPossibleMoves(boardState, aiMove.from, PlayerColor.BLACK, castlingRights, enPassantTarget);
@@ -524,44 +643,55 @@ const App: React.FC = () => {
                      applyMove(aiMove.from, aiMove.to, aiMove.promotion);
                    } else {
                       console.error("AI suggested an illegal move:", aiMove, "Possible moves:", AIsPossibleMoves);
-                      setGameStatus(prev => ({...prev, message: "AI error: Illegal move. Your turn."})); setCurrentPlayer(PlayerColor.WHITE); 
+                      const errorMsg = "AI error: Illegal move. Your turn.";
+                      setGameStatus(prev => ({...prev, message: errorMsg})); 
+                      addToast(errorMsg, 'error');
+                      setCurrentPlayer(PlayerColor.WHITE); 
                       setLastMove(null); 
                    }
               } else {
-                   setGameStatus(prev => ({...prev, message: "AI error: No piece to move or wrong piece. Your turn."})); setCurrentPlayer(PlayerColor.WHITE); 
+                   const errorMsg = "AI error: No piece to move or wrong piece. Your turn.";
+                   setGameStatus(prev => ({...prev, message: errorMsg}));
+                   addToast(errorMsg, 'error');
+                   setCurrentPlayer(PlayerColor.WHITE); 
                    setLastMove(null); 
               }
             } else if (!gameStatus.isGameOver) { 
-               setGameStatus(prev => ({...prev, message: "AI could not move. Your turn."})); setCurrentPlayer(PlayerColor.WHITE); 
+               const errorMsg = "AI could not move. Your turn.";
+               setGameStatus(prev => ({...prev, message: errorMsg})); 
+               addToast(errorMsg, 'error');
+               setCurrentPlayer(PlayerColor.WHITE); 
                setLastMove(null);
             }
           })
           .catch(error => {
             if (!gameStatus.isGameOver) {
-              setGameStatus(prev => ({...prev, message: "Error with AI. Your turn."})); setCurrentPlayer(PlayerColor.WHITE); 
+              const errorMsg = "Error with AI. Your turn.";
+              setGameStatus(prev => ({...prev, message: errorMsg})); 
+              addToast(errorMsg, 'error');
+              setCurrentPlayer(PlayerColor.WHITE); 
               setLastMove(null);
             }
           })
           .finally(() => setIsComputerThinking(false));
       }, aiMoveDelay);
     }
-  }, [currentPlayer, gameMode, gameStatus.isGameOver, promotionSquare, boardState, castlingRights, enPassantTarget, applyMove, isComputerThinking, timeLimitPerPlayer, aiDifficulty]);
+  }, [currentPlayer, gameMode, gameStatus.isGameOver, promotionSquare, isResignModalOpen, isRenameModalOpen, boardState, castlingRights, enPassantTarget, applyMove, isComputerThinking, timeLimitPerPlayer, aiDifficulty, addToast]);
 
-  // --- Puzzle Mode Logic ---
   const loadPuzzle = (index: number) => {
     if (index < 0 || index >= PUZZLES.length) return;
-    resetGameToWelcomeArena(true); // Soft reset
+    resetGameToWelcomeArena(true); 
     const puzzle = PUZZLES[index];
     setCurrentPuzzle(puzzle);
     setCurrentPuzzleIndex(index);
     setPuzzleSolutionStep(0);
     setGameMode('puzzle');
-    setIsGameSetupComplete(true); // Mark as setup complete for UI rendering
+    setIsGameSetupComplete(true); 
 
     let initialBoardFromPuzzle: BoardState;
     let playerToMoveFromPuzzle: PlayerColor;
-    let castlingRightsFromPuzzle: CastlingRights = INITIAL_CASTLING_RIGHTS; // Default
-    let enPassantTargetFromPuzzle: Position | null = null; // Default
+    let castlingRightsFromPuzzle: CastlingRights = INITIAL_CASTLING_RIGHTS; 
+    let enPassantTargetFromPuzzle: Position | null = null; 
 
     if (puzzle.fen) {
         const fenData = parseFEN(puzzle.fen);
@@ -575,7 +705,7 @@ const App: React.FC = () => {
         if(puzzle.initialCastlingRights) castlingRightsFromPuzzle = JSON.parse(JSON.stringify(puzzle.initialCastlingRights));
         if(puzzle.initialEnPassantTarget) enPassantTargetFromPuzzle = [...puzzle.initialEnPassantTarget] as Position;
     } else {
-        initialBoardFromPuzzle = createInitialBoard(); // Fallback
+        initialBoardFromPuzzle = createInitialBoard(); 
         playerToMoveFromPuzzle = PlayerColor.WHITE;
     }
     
@@ -584,9 +714,12 @@ const App: React.FC = () => {
     setCastlingRights(castlingRightsFromPuzzle);
     setEnPassantTarget(enPassantTargetFromPuzzle);
     setKingInCheckPosition(isKingInCheck(initialBoardFromPuzzle, playerToMoveFromPuzzle) ? findKingPosition(initialBoardFromPuzzle, playerToMoveFromPuzzle) : null);
-    setGameStatus({ message: puzzle.description, isGameOver: false });
-    setPuzzleMessage(puzzle.description);
-    setPlayer1Name(playerToMoveFromPuzzle === PlayerColor.WHITE ? "White" : "Black"); // Generic names for puzzle
+    
+    const puzzleStartMessage = puzzle.description;
+    setGameStatus({ message: puzzleStartMessage, isGameOver: false });
+    addToast(puzzleStartMessage, 'info');
+
+    setPlayer1Name(playerToMoveFromPuzzle === PlayerColor.WHITE ? "White" : "Black"); 
     setPlayer2Name(playerToMoveFromPuzzle === PlayerColor.WHITE ? "Black" : "White");
   };
 
@@ -597,47 +730,60 @@ const App: React.FC = () => {
         solutionMove.to[0] === to[0] && solutionMove.to[1] === to[1] &&
         (solutionMove.promotion ? solutionMove.promotion === promotion : true)) {
       
-      applyMove(from, to, promotion, true); // True indicates it's a puzzle move, avoids history
+      applyMove(from, to, promotion, true); 
       setPuzzleSolutionStep(prev => prev + 1);
 
       if (puzzleSolutionStep + 1 >= currentPuzzle.solution.length) {
-        setPuzzleMessage(`Correct! Puzzle Solved: ${currentPuzzle.title}`);
+        const successMsg = `Correct! Puzzle Solved: ${currentPuzzle.title}`;
+        addToast(successMsg, 'success');
         setGameStatus(prev => ({...prev, message: `Puzzle Solved! ${solutionMove.comment || ''}`, isGameOver: true}));
-        // Potentially add a small delay then load next puzzle or show completion
+        
       } else {
-        setPuzzleMessage(`Correct! ${solutionMove.comment || 'Good move!'}`);
-        // If puzzle involves opponent moves, handle them here
+        const correctMsg = `Correct! ${solutionMove.comment || 'Good move!'}`;
+        addToast(correctMsg, 'info');
       }
     } else {
-      setPuzzleMessage("Incorrect move. Try again!");
-      // Reset selected piece
+      addToast("Incorrect move. Try again!", 'error');
       setSelectedPiecePosition(null);
       setPossibleMoves([]);
     }
   };
   
   const handleSelectModeFromWelcomeArena = (mode: GameMode | 'hof' | 'puzzle') => {
-    resetGameToWelcomeArena(true); 
+    resetGameToWelcomeArena(true);
+
     if (mode === 'hof') {
         setViewingHallOfFame(true);
         setIsGameSetupPending(false);
+        setGameMode(null); 
+        setIsTimeModeSelectionOpen(false); 
+        setIsGameSetupComplete(false); 
     } else if (mode === 'puzzle') {
-        loadPuzzle(0); // Load first puzzle by default
-        setIsMenuOpen(false);
-    } else {
+        setIsGameSetupPending(false);
+        setIsTimeModeSelectionOpen(false);
+        setViewingHallOfFame(false);
+        loadPuzzle(0); 
+    } else { 
+        setIsGameSetupPending(false); 
+        setIsTimeModeSelectionOpen(false); 
+        setViewingHallOfFame(false); 
         if (mode === 'online') {
             setIsOnlineWarningModalOpen(true);
-        } else {
-            setGameMode(mode as GameMode); 
-            setIsGameSetupPending(true); 
-            setIsTimeModeSelectionOpen(true); 
+        } else { 
+            setGameMode(mode as GameMode);
+            setIsGameSetupPending(true);
+            setIsTimeModeSelectionOpen(true);
         }
     }
-    if (mode !== 'puzzle') setIsMenuOpen(false);
+    setIsMenuOpen(false); 
   };
   
   const handleProceedFromOnlineWarning = () => {
     setIsOnlineWarningModalOpen(false);
+    setIsGameSetupPending(false);
+    setIsTimeModeSelectionOpen(false);
+    setViewingHallOfFame(false);
+
     setGameMode('online');
     setIsGameSetupPending(true);
     setIsTimeModeSelectionOpen(true);
@@ -662,9 +808,12 @@ const App: React.FC = () => {
     setIsGameSetupComplete(true); 
     setIsGameSetupPending(false);
     setViewingHallOfFame(false);
-    setGameStatus({ message: `Game started. Good luck, ${finalP1Name} and ${finalP2Name}!`, isGameOver: false });
+    const startMsg = `Game started. Good luck, ${finalP1Name} and ${finalP2Name}! ${PlayerColor.WHITE}'s turn.`;
+    setGameStatus({ message: startMsg, isGameOver: false });
+    addToast(startMsg, 'info');
+
     setLastMove(null);
-    setMoveHistory([]); // Clear history for new game
+    setMoveHistory([]); 
     if (timeLimitPerPlayer) {
         setPlayer1TimeLeft(timeLimitPerPlayer);
         setPlayer2TimeLeft(timeLimitPerPlayer);
@@ -679,8 +828,25 @@ const App: React.FC = () => {
     
     setBoardState(initialOnlineStateFromSetup.boardState);
     setCurrentPlayer(initialOnlineStateFromSetup.currentPlayer);
-    // ... (rest of online setup remains similar) ...
-    setMoveHistory([]); // No undo for online games
+    setCastlingRights(initialOnlineStateFromSetup.castlingRights);
+    setEnPassantTarget(initialOnlineStateFromSetup.enPassantTarget);
+    setCapturedByWhite(initialOnlineStateFromSetup.capturedByWhite);
+    setCapturedByBlack(initialOnlineStateFromSetup.capturedByBlack);
+    
+    setGameStatus(initialOnlineStateFromSetup.gameStatus);
+    addToast(initialOnlineStateFromSetup.gameStatus.message, determineToastType(initialOnlineStateFromSetup.gameStatus));
+
+    setKingInCheckPosition(initialOnlineStateFromSetup.kingInCheckPosition);
+    setPlayer1Name(initialOnlineStateFromSetup.player1Name);
+    setPlayer2Name(initialOnlineStateFromSetup.player2Name || (isHost ? "Waiting..." : localPName) );
+    setIsOnlineGameReadyForStorage(initialOnlineStateFromSetup.isGameReady);
+    setLastMove(initialOnlineStateFromSetup.lastMove || null);
+    setTimeLimitPerPlayer(initialOnlineStateFromSetup.timeLimitPerPlayer);
+    setPlayer1TimeLeft(initialOnlineStateFromSetup.player1TimeLeft);
+    setPlayer2TimeLeft(initialOnlineStateFromSetup.player2TimeLeft);
+    setGameStartTimeStamp(initialOnlineStateFromSetup.gameStartTimeStamp);
+    
+    setMoveHistory([]); 
     setGameMode('online'); 
     setIsGameSetupComplete(true); 
     setIsGameSetupPending(false);
@@ -688,9 +854,86 @@ const App: React.FC = () => {
     setIsMenuOpen(false); 
   };
 
-  // --- Undo Move Handler ---
+  const handleResign = (resigningPlayerColor: PlayerColor) => {
+    if (gameStatus.isGameOver) return;
+    setPlayerAttemptingResign(resigningPlayerColor);
+    setIsResignModalOpen(true);
+  };
+
+  const executeResignation = () => {
+    if (!playerAttemptingResign) return;
+
+    const winnerColor = playerAttemptingResign === PlayerColor.WHITE ? PlayerColor.BLACK : PlayerColor.WHITE;
+    const winnerName = winnerColor === PlayerColor.WHITE ? player1Name : player2Name;
+    const loserName = playerAttemptingResign === PlayerColor.WHITE ? player1Name : player2Name;
+    
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+
+    const newGameStatus: GameStatus = {
+        message: `${loserName} resigned. ${winnerName} wins the game!`,
+        isGameOver: true,
+        winner: winnerColor,
+        winnerName: winnerName,
+        reason: 'resignation',
+    };
+    setGameStatus(newGameStatus);
+    addToast(newGameStatus.message, 'success');
+    setKingInCheckPosition(null); 
+    playSound(SOUND_WIN, layoutSettings.isSoundEnabled);
+    setHasWinSoundPlayedThisGame(true);
+
+    const duration = gameStartTimeStamp ? (Date.now() - gameStartTimeStamp) / 1000 : null;
+    if (gameMode && gameMode !== 'puzzle') {
+        saveHallOfFameEntry(winnerName, loserName, gameMode, gameStartTimeStamp, duration, 'resignation');
+    }
+
+    if (gameMode === 'online' && onlineGameIdForStorage) {
+        const currentOnlineState = getOnlineGameState(onlineGameIdForStorage);
+        if (currentOnlineState) {
+            const updatedOnlineState: OnlineGameState = {
+                ...currentOnlineState,
+                gameStatus: newGameStatus,
+                player1TimeLeft, 
+                player2TimeLeft,
+                lastMoveBy: playerAttemptingResign, 
+            };
+            setOnlineGameState(onlineGameIdForStorage, updatedOnlineState);
+            lastMoveByRef.current = playerAttemptingResign;
+        }
+    }
+    setIsResignModalOpen(false);
+    setPlayerAttemptingResign(null);
+  };
+
+  const cancelResignation = () => {
+    setIsResignModalOpen(false);
+    setPlayerAttemptingResign(null);
+  };
+  
+  const handleRequestRename = (playerColor: PlayerColor) => {
+    setPlayerToRename(playerColor);
+    setIsRenameModalOpen(true);
+  };
+
+  const executePlayerRename = (newName: string) => {
+    if (playerToRename === PlayerColor.WHITE) {
+      setPlayer1Name(newName);
+    } else if (playerToRename === PlayerColor.BLACK) {
+      setPlayer2Name(newName);
+    }
+    addToast(`${playerToRename === PlayerColor.WHITE ? player1Name : player2Name} renamed to ${newName}.`, 'info');
+    setIsRenameModalOpen(false);
+    setPlayerToRename(null);
+  };
+
+  const cancelPlayerRename = () => {
+    setIsRenameModalOpen(false);
+    setPlayerToRename(null);
+  };
+
+
   const handleUndoMove = () => {
-    if (moveHistory.length === 0 || gameStatus.isGameOver || (gameMode === 'computer' && isComputerThinking) || promotionSquare) return;
+    if (moveHistory.length === 0 || gameStatus.isGameOver || (gameMode === 'computer' && isComputerThinking) || promotionSquare || isResignModalOpen || isRenameModalOpen) return;
 
     const lastState = moveHistory[moveHistory.length - 1];
     setBoardState(lastState.boardState);
@@ -699,45 +942,52 @@ const App: React.FC = () => {
     setEnPassantTarget(lastState.enPassantTarget);
     setCapturedByWhite(lastState.capturedByWhite);
     setCapturedByBlack(lastState.capturedByBlack);
-    setGameStatus(lastState.gameStatus); // Important to restore game over status correctly
+    
+    setGameStatus(lastState.gameStatus); 
+    addToast("Last move undone.", 'info');
+
     setKingInCheckPosition(lastState.kingInCheckPosition);
     setLastMove(lastState.lastMove);
     setPlayer1TimeLeft(lastState.player1TimeLeft);
     setPlayer2TimeLeft(lastState.player2TimeLeft);
-    // gameStartTimeStamp should not be reset by undo
+    
     
     setSelectedPiecePosition(null);
     setPossibleMoves([]);
-    setPromotionSquare(null); // Clear any pending promotion
-    setHintSuggestion(null); // Clear hint
+    setPromotionSquare(null); 
+    setHintSuggestion(null); 
 
     setMoveHistory(prevHistory => prevHistory.slice(0, -1));
   };
 
-  // --- Hint Handler ---
   const handleRequestHint = async () => {
-    if (gameStatus.isGameOver || isComputerThinking || promotionSquare) return;
-    setIsComputerThinking(true); // Show thinking indicator for hint
+    if (gameStatus.isGameOver || isComputerThinking || promotionSquare || isResignModalOpen || isRenameModalOpen) return;
+    setIsComputerThinking(true); 
+    addToast("Requesting hint from AI...", 'info', 2000);
     try {
-      const hint = await getComputerMove(boardState, currentPlayer, castlingRights, enPassantTarget, AIDifficultyLevel.HARD); // Use a strong AI for hints
+      const hint = await getComputerMove(boardState, currentPlayer, castlingRights, enPassantTarget, AIDifficultyLevel.HARD); 
       if (hint) {
         setHintSuggestion(hint);
-        setHintKey(Date.now().toString()); // Force re-render of hint animation
-        setTimeout(() => setHintSuggestion(null), 2000); // Clear hint after 2s
+        setHintKey(Date.now().toString()); 
+        addToast(`Hint: Move ${pieceTypeToName(boardState[hint.from[0]][hint.from[1]]!.type)} from ${String.fromCharCode(97+hint.from[1])}${8-hint.from[0]} to ${String.fromCharCode(97+hint.to[1])}${8-hint.to[0]}`, 'info');
+        setTimeout(() => setHintSuggestion(null), 3000); 
       } else {
-        setGameStatus(prev => ({ ...prev, message: "Hint not available right now." }));
+        addToast("Hint not available right now.", 'warning');
       }
     } catch (error) {
       console.error("Error getting hint:", error);
-      setGameStatus(prev => ({ ...prev, message: "Could not fetch hint." }));
+      addToast("Could not fetch hint.", 'error');
     } finally {
       setIsComputerThinking(false);
     }
   };
 
   const handleSaveCurrentGame = () => {
-    if (!gameMode || gameMode === 'puzzle' || !isGameSetupComplete || gameStatus.isGameOver) return;
-    // ... (saving logic, ensure aiDifficulty is saved if gameMode === 'computer')
+    if (!gameMode || gameMode === 'puzzle' || !isGameSetupComplete || gameStatus.isGameOver) {
+      addToast("Cannot save game at this time.", 'warning');
+      return;
+    }
+    
     const gameToSave: SavedGame = {
       id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       name: `vs ${gameMode === 'computer' ? `${AI_PLAYER_NAME} (${aiDifficulty})` : (gameMode === 'online' || gameMode === 'loaded_friend' ? (localPlayerColorForStorage === PlayerColor.WHITE ? player2Name : player1Name) : player2Name)} ${timeLimitPerPlayer ? `(${timeLimitPerPlayer/60} min)` : ''}`,
@@ -750,15 +1000,19 @@ const App: React.FC = () => {
     };
     saveGameToStorage(gameToSave);
     setSavedGames(getSavedGames()); 
+    addToast("Game saved successfully!", 'success');
   };
 
   const handleLoadSavedGame = (gameId: string) => {
     const gameToLoad = savedGames.find(g => g.id === gameId);
-    if (!gameToLoad) return;
+    if (!gameToLoad) {
+      addToast("Failed to load game.", 'error');
+      return;
+    }
     
     resetGameToWelcomeArena(); 
     setGameMode(gameToLoad.gameMode);
-    // ... (rest of loading logic, ensure aiDifficulty is loaded)
+    
     setBoardState(gameToLoad.boardState);
     setCurrentPlayer(gameToLoad.currentPlayer);
     setPlayer1Name(gameToLoad.player1Name);
@@ -780,16 +1034,19 @@ const App: React.FC = () => {
     setIsGameSetupComplete(true); 
     setIsGameSetupPending(false);
     setIsMenuOpen(false);
-    setMoveHistory([]); // Clear history when loading
+    setMoveHistory([]); 
+    addToast(`Game "${gameToLoad.name}" loaded.`, 'info');
   };
 
   const handleDeleteSavedGame = (gameId: string) => { 
     deleteSavedGameFromStorage(gameId);
     setSavedGames(getSavedGames());
+    addToast("Saved game deleted.", 'info');
   };
   const handleClearAllSavedGames = () => { 
     clearAllSavedGamesFromStorage();
     setSavedGames([]);
+    addToast("All saved games cleared.", 'info');
   };
   const handleResetAndOpenMenu = (navigateToWelcome: boolean = true) => { 
     if (navigateToWelcome) {
@@ -799,67 +1056,10 @@ const App: React.FC = () => {
   };
   const handleOpenLayoutCustomization = () => { 
     setIsLayoutModalOpen(true);
-    setIsMenuOpen(false); // Close main menu when layout modal opens
+    setIsMenuOpen(false); 
   };
 
-
-  if (viewingHallOfFame) { 
-    return <HallOfFame onBackToMenu={() => { setViewingHallOfFame(false); resetGameToWelcomeArena(); }} theme={theme} />;
-  }
-  if (isChessGuideOpen) { 
-    return <ChessGuide isOpen={isChessGuideOpen} onClose={() => handleToggleChessGuide(false)} theme={theme} layoutSettings={layoutSettings} />;
-  }
-  if (isChangelogModalOpen) {
-    return <ChangelogModal isOpen={isChangelogModalOpen} onClose={() => handleToggleChangelogModal(false)} theme={theme} />;
-  }
-  if (isOnlineWarningModalOpen) { 
-    return <OnlineWarningModal isOpen={isOnlineWarningModalOpen} onProceed={handleProceedFromOnlineWarning} onCancel={() => {setIsOnlineWarningModalOpen(false); resetGameToWelcomeArena();}} theme={theme} />;
-  }
-  if (isTimeModeSelectionOpen && gameMode && gameMode !== 'puzzle') { 
-    return <TimeModeSelectionModal isOpen={isTimeModeSelectionOpen} onClose={handleTimeModeSelected} theme={theme} />;
-  }
-  
-  if (isGameSetupPending && !isTimeModeSelectionOpen && gameMode && gameMode !== 'puzzle') {
-     if (gameMode === 'online') { 
-        return <OnlineGameSetup onGameSetupComplete={handleOnlineGameSetupComplete} onBackToMenu={() => resetGameToWelcomeArena()} theme={theme} initialTimeLimit={timeLimitPerPlayer}/>;
-     } 
-     else if (gameMode === 'friend' || gameMode === 'computer') {
-        return <PlayerNameEntry gameMode={gameMode} onSetupComplete={handlePlayerNameSetup} onBackToMenu={() => resetGameToWelcomeArena()} theme={theme} />;
-    }
-  }
-  
-  const turnIndicatorPlayerName = (): string => {
-    if (!gameMode && !isGameSetupPending && !isGameSetupComplete) {
-      return "Welcome!"; 
-    }
-    if (gameStatus.isGameOver) {
-      if (gameStatus.winnerName) return `${gameStatus.winnerName} Wins!`;
-      if (gameStatus.reason === 'stalemate') return 'Draw Game';
-      return "Game Over";
-    }
-    if (gameMode === 'puzzle' && currentPuzzle) {
-        return currentPuzzle.playerToMove === PlayerColor.WHITE ? "White to Solve" : "Black to Solve";
-    }
-    if (isGameSetupPending) {
-        return "Setting Up Game...";
-    }    
-    if (!isGameSetupComplete) {
-        return "Waiting for Setup..."; 
-    }
-    
-    let name = currentPlayer === PlayerColor.WHITE ? player1Name : player2Name;
-    if (gameMode === 'computer' && currentPlayer === PlayerColor.BLACK && isComputerThinking) {
-      return `${AI_PLAYER_NAME} is thinking...`;
-    }
-     if (gameMode === 'online') {
-        if (!isOnlineGameReadyForStorage && onlineGameIdForStorage) return "Waiting for opponent...";
-        if (currentPlayer !== localPlayerColorForStorage) {
-            const opponentOnlineName = currentPlayer === PlayerColor.WHITE ? (initialOnlineStateFromSetup?.player1Name || "Player 1") : (initialOnlineStateFromSetup?.player2Name || "Player 2");
-            return `${opponentOnlineName}'s Turn (Online)`;
-        }
-     }
-    return `${name}'s Turn`;
-  };
+  const initialOnlineStateFromSetup = onlineGameIdForStorage ? getOnlineGameState(onlineGameIdForStorage) : null;
   
   const headerTextColor = theme === 'dark' ? 'text-slate-100' : 'text-slate-800';
   const welcomePanelClasses = theme === 'dark' ? 'bg-slate-800/60 backdrop-blur-xl border border-slate-700/70 shadow-black/40' : 'bg-white/70 backdrop-blur-xl border-gray-300/70 shadow-gray-400/30';
@@ -871,14 +1071,14 @@ const App: React.FC = () => {
       friend: {'--glow-color-dark': 'rgba(34, 211, 238, 0.4)', '--glow-color-dark-soft': 'rgba(45, 212, 191, 0.3)'},
       computer: {'--glow-color-dark': 'rgba(251, 113, 133, 0.4)', '--glow-color-dark-soft': 'rgba(239, 68, 68, 0.3)'},
       online: {'--glow-color-dark': 'rgba(56, 189, 248, 0.4)', '--glow-color-dark-soft': 'rgba(99, 102, 241, 0.3)'},
-      puzzle: {'--glow-color-dark': 'rgba(163, 230, 53, 0.4)', '--glow-color-dark-soft': 'rgba(132, 204, 22, 0.3)'}, // Lime for puzzle
+      puzzle: {'--glow-color-dark': 'rgba(163, 230, 53, 0.4)', '--glow-color-dark-soft': 'rgba(132, 204, 22, 0.3)'}, 
       hof: {'--glow-color-dark': 'rgba(251, 191, 36, 0.5)', '--glow-color-dark-soft': 'rgba(249, 115, 22, 0.4)'},
   };
   const welcomeArenaGlowVarsLight = {
       friend: {'--glow-color-light': 'rgba(20, 184, 166, 0.3)', '--glow-color-light-soft': 'rgba(16, 185, 129, 0.2)'},
       computer: {'--glow-color-light': 'rgba(220, 38, 38, 0.3)', '--glow-color-light-soft': 'rgba(244, 63, 94, 0.2)'},
       online: {'--glow-color-light': 'rgba(14, 165, 233, 0.3)', '--glow-color-light-soft': 'rgba(79, 70, 229, 0.2)'},
-      puzzle: {'--glow-color-light': 'rgba(101, 163, 13, 0.3)', '--glow-color-light-soft': 'rgba(77, 124, 15, 0.2)'}, // Darker lime for light puzzle
+      puzzle: {'--glow-color-light': 'rgba(101, 163, 13, 0.3)', '--glow-color-light-soft': 'rgba(77, 124, 15, 0.2)'}, 
       hof: {'--glow-color-light': 'rgba(245, 158, 11, 0.4)', '--glow-color-light-soft': 'rgba(234, 88, 12, 0.2)'},
   };
 
@@ -909,17 +1109,36 @@ const App: React.FC = () => {
     { id: 'friend', label: 'Play Friend', icon: '🧑‍🤝‍🧑', baseColor: 'friend' },
     { id: 'computer', label: 'Play AI', icon: '🤖', baseColor: 'computer' },
     { id: 'online', label: 'Play Online', icon: '🌐', baseColor: 'online' },
-    { id: 'puzzle', label: 'Puzzle Mode', icon: '🧩', baseColor: 'puzzle' }, // New Puzzle Mode
+    { id: 'puzzle', label: 'Puzzle Mode', icon: '🧩', baseColor: 'puzzle' }, 
     { id: 'hof', label: 'Hall of Fame', icon: '🏆', baseColor: 'hof' },
   ];
 
   const welcomeKingPiece: Piece = {type: PieceType.KING, color: PlayerColor.WHITE, hasMoved: true, id: 'welcome-king'};
-  // Need to define initialOnlineStateFromSetup for online name display if it's used by turnIndicatorPlayerName
-  const initialOnlineStateFromSetup = onlineGameIdForStorage ? getOnlineGameState(onlineGameIdForStorage) : null;
+  
+  const resignButtonBaseCommon = `p-2 rounded-md font-semibold transition-colors border shadow-sm hover:shadow-md focus:outline-none focus-visible:ring-1 focus-visible:ring-opacity-75 flex items-center justify-center whitespace-nowrap h-8 w-24`; 
+  const resignButtonThemeSpecific = theme === 'dark'
+    ? 'bg-red-700/70 hover:bg-red-600/80 text-red-100 border-red-500/60 focus-visible:ring-red-400'
+    : 'bg-red-500/80 hover:bg-red-600/90 text-white border-red-600/70 focus-visible:ring-red-300';
+  const resignButtonDisabledClasses = 'opacity-50 cursor-not-allowed';
+
+
+  const shouldShowWelcomeArena = (!gameMode || (!isGameSetupComplete && !isGameSetupPending)) && 
+                               !viewingHallOfFame && 
+                               !isChessGuideOpen && 
+                               !isChangelogModalOpen && 
+                               !isOnlineWarningModalOpen;
+
+  const shouldShowGameArea = gameMode && gameMode !== 'puzzle' && isGameSetupComplete;
+  const shouldShowPuzzleArea = gameMode === 'puzzle' && isGameSetupComplete && currentPuzzle;
+  
+  const showPlayerNameEntry = isGameSetupPending && (gameMode === 'friend' || gameMode === 'computer') && !isTimeModeSelectionOpen && !viewingHallOfFame;
+  const showOnlineGameSetup = isGameSetupPending && gameMode === 'online' && !isTimeModeSelectionOpen && !viewingHallOfFame;
+  const showTimeModeSelection = isTimeModeSelectionOpen && gameMode && isGameSetupPending && !viewingHallOfFame;
 
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-start pt-4 sm:pt-6 p-2 sm:p-3 bg-transparent">
+      <ToastContainer toasts={activeToasts} onDismiss={removeToast} theme={theme} />
       <MenuModal 
         isOpen={isMenuOpen} 
         onClose={() => setIsMenuOpen(false)}
@@ -935,7 +1154,7 @@ const App: React.FC = () => {
         onClearAllSavedGames={handleClearAllSavedGames}
         onOpenLayoutCustomization={handleOpenLayoutCustomization}
         onOpenChessGuide={() => handleToggleChessGuide(true)}
-        onOpenChangelog={() => handleToggleChangelogModal(true)} // Added this prop
+        onOpenChangelog={() => handleToggleChangelogModal(true)} 
         layoutSettings={layoutSettings}
         onLayoutSettingsChange={handleLayoutSettingsChange}
       />
@@ -951,6 +1170,35 @@ const App: React.FC = () => {
             theme={theme}
         />
        )}
+       {isResignModalOpen && playerAttemptingResign && (
+        <ResignConfirmationModal
+          isOpen={isResignModalOpen}
+          onConfirm={executeResignation}
+          onCancel={cancelResignation}
+          resigningPlayerName={playerAttemptingResign === PlayerColor.WHITE ? player1Name : player2Name}
+          winningPlayerName={playerAttemptingResign === PlayerColor.WHITE ? player2Name : player1Name}
+          theme={theme}
+        />
+      )}
+      {isRenameModalOpen && playerToRename && (
+        <RenamePlayerModal
+            isOpen={isRenameModalOpen}
+            currentName={playerToRename === PlayerColor.WHITE ? player1Name : player2Name}
+            onConfirm={executePlayerRename}
+            onCancel={cancelPlayerRename}
+            theme={theme}
+        />
+      )}
+      {gameStatus.isGameOver && isGameSetupComplete && (gameMode !== 'puzzle' || currentPuzzle?.solution.length === puzzleSolutionStep) && (
+        <GameOverOverlay 
+          gameStatus={gameStatus} 
+          theme={theme} 
+          onPlayAgain={resetGameToWelcomeArena} 
+          player1Name={player1Name}
+          player2Name={player2Name}
+        />
+      )}
+
 
       <header className="mb-3 sm:mb-4 text-center w-full relative px-2 sm:px-4">
         <div className="flex items-center justify-between w-full">
@@ -976,7 +1224,7 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {(!gameMode || (!isGameSetupComplete && !isGameSetupPending)) && !viewingHallOfFame && !isChessGuideOpen && !isChangelogModalOpen && !isOnlineWarningModalOpen && (
+      {shouldShowWelcomeArena && (
          <div className="flex-grow flex flex-col items-center justify-center text-center p-4 w-full">
             <div className={`p-6 sm:p-8 md:p-10 rounded-2xl shadow-2xl w-full max-w-xl ${welcomePanelClasses}`}>
                  <div className="flex justify-center mb-5 sm:mb-7">
@@ -988,7 +1236,7 @@ const App: React.FC = () => {
                 <p className={`text-sm sm:text-base mb-6 sm:mb-8 ${welcomeSubTextColor}`}>
                     Choose your challenge or explore past glories.
                 </p>
-                <div className="grid grid-cols-2 sm:grid-cols-2 gap-4 sm:gap-5"> {/* Consider 3 cols for 5 items */}
+                <div className="grid grid-cols-2 sm:grid-cols-2 gap-4 sm:gap-5"> 
                     {welcomeArenaMenuItems.map(item => {
                         const cardThemeClasses = getWelcomeArenaCardThemeClasses(item.baseColor, theme);
                         // @ts-ignore
@@ -1007,35 +1255,111 @@ const App: React.FC = () => {
         </div>
       )}
       
-      {gameMode && gameMode !== 'puzzle' && isGameSetupComplete && (
-        <main className="flex flex-col items-center space-y-3 sm:space-y-4 w-full mt-2">
-            <PlayerDisplayPanel playerName={player2Name} playerColor={PlayerColor.BLACK} capturedPieces={capturedByBlack} isCurrentTurn={currentPlayer === PlayerColor.BLACK} theme={theme} layoutSettings={layoutSettings} timeLeft={player2TimeLeft} timeLimit={timeLimitPerPlayer} />
-            <div className="flex flex-col items-center w-full max-w-max mx-auto">
+      {viewingHallOfFame && (
+        <HallOfFame onBackToMenu={() => { resetGameToWelcomeArena(false); setViewingHallOfFame(false); setIsMenuOpen(true); }} theme={theme} />
+      )}
+
+      {showPlayerNameEntry && (
+        <PlayerNameEntry
+          gameMode={gameMode!} 
+          onSetupComplete={handlePlayerNameSetup}
+          onBackToMenu={() => { resetGameToWelcomeArena(false); setIsMenuOpen(true);}}
+          theme={theme}
+        />
+      )}
+
+      {showOnlineGameSetup && (
+        <OnlineGameSetup
+          onGameSetupComplete={handleOnlineGameSetupComplete}
+          onBackToMenu={() => { resetGameToWelcomeArena(false); setIsMenuOpen(true);}}
+          theme={theme}
+          initialTimeLimit={timeLimitPerPlayer}
+        />
+      )}
+
+      {shouldShowGameArea && (
+        <main className="flex flex-col items-center space-y-1 sm:space-y-2 w-full mt-2">
+            <div className="flex flex-row items-center space-x-2 w-full max-w-lg mx-auto">
+                <PlayerDisplayPanel 
+                    playerName={player2Name} 
+                    playerColor={PlayerColor.BLACK} 
+                    capturedPieces={capturedByBlack} 
+                    isCurrentTurn={currentPlayer === PlayerColor.BLACK && !gameStatus.isGameOver} 
+                    theme={theme} 
+                    layoutSettings={layoutSettings} 
+                    timeLeft={player2TimeLeft} 
+                    timeLimit={timeLimitPerPlayer}
+                    className="flex-grow min-w-0"
+                    onRenameRequest={handleRequestRename}
+                    gameMode={gameMode}
+                    isGameOver={gameStatus.isGameOver}
+                />
+                {!gameStatus.isGameOver && layoutSettings.showResignButton && (
+                  <button
+                    onClick={() => handleResign(PlayerColor.BLACK)}
+                    disabled={!!promotionSquare || isResignModalOpen || isRenameModalOpen}
+                    className={`${resignButtonBaseCommon} ${resignButtonThemeSpecific} transform rotate-90 origin-center z-10 ${(!!promotionSquare || isResignModalOpen || isRenameModalOpen) ? resignButtonDisabledClasses : ''}`}
+                    aria-label={`Resign game as ${player2Name}`}
+                    title="Resign Game"
+                  >
+                    Resign <FaFlag className="ml-1" size="0.9em"/>
+                  </button>
+                )}
+            </div>
+
+            <div className="flex flex-col items-center w-full max-w-max mx-auto mt-2">
                 <Board boardState={boardState} onSquareClick={handleSquareClick} selectedPiecePosition={selectedPiecePosition} possibleMoves={possibleMoves} currentPlayer={currentPlayer} kingInCheckPosition={kingInCheckPosition} theme={theme} layoutSettings={layoutSettings} lastMove={lastMove} hintSuggestion={hintSuggestion} hintKey={hintKey}/>
                 <GameControls 
                     theme={theme} 
                     onUndo={handleUndoMove} 
-                    canUndo={moveHistory.length > 0 && !gameStatus.isGameOver && !(gameMode === 'computer' && isComputerThinking) && gameMode !== 'online' && !timeLimitPerPlayer}
+                    canUndo={moveHistory.length > 0 && !gameStatus.isGameOver && !(gameMode === 'computer' && isComputerThinking) && gameMode !== 'online' && !timeLimitPerPlayer && !promotionSquare && !isResignModalOpen && !isRenameModalOpen}
                     onHint={handleRequestHint}
-                    canHint={!gameStatus.isGameOver && !(gameMode === 'computer' && currentPlayer === PlayerColor.BLACK) && !isComputerThinking && gameMode !== 'online'}
+                    canHint={!gameStatus.isGameOver && !(gameMode === 'computer' && currentPlayer === PlayerColor.BLACK) && !isComputerThinking && gameMode !== 'online' && !promotionSquare && !isResignModalOpen && !isRenameModalOpen}
                 />
             </div>
-            <PlayerDisplayPanel playerName={player1Name} playerColor={PlayerColor.WHITE} capturedPieces={capturedByWhite} isCurrentTurn={currentPlayer === PlayerColor.WHITE} theme={theme} layoutSettings={layoutSettings} timeLeft={player1TimeLeft} timeLimit={timeLimitPerPlayer}/>
+
+            <div className="flex flex-row items-center space-x-2 w-full max-w-lg mx-auto">
+                <PlayerDisplayPanel 
+                    playerName={player1Name} 
+                    playerColor={PlayerColor.WHITE} 
+                    capturedPieces={capturedByWhite} 
+                    isCurrentTurn={currentPlayer === PlayerColor.WHITE && !gameStatus.isGameOver} 
+                    theme={theme} 
+                    layoutSettings={layoutSettings} 
+                    timeLeft={player1TimeLeft} 
+                    timeLimit={timeLimitPerPlayer}
+                    className="flex-grow min-w-0"
+                    onRenameRequest={handleRequestRename}
+                    gameMode={gameMode}
+                    isGameOver={gameStatus.isGameOver}
+                />
+                 {!gameStatus.isGameOver && layoutSettings.showResignButton && (
+                   <button
+                      onClick={() => handleResign(PlayerColor.WHITE)}
+                      disabled={!!promotionSquare || isResignModalOpen || isRenameModalOpen}
+                      className={`${resignButtonBaseCommon} ${resignButtonThemeSpecific} transform -rotate-90 origin-center z-10 ${(!!promotionSquare || isResignModalOpen || isRenameModalOpen) ? resignButtonDisabledClasses : ''}`}
+                      aria-label={`Resign game as ${player1Name}`}
+                      title="Resign Game"
+                    >
+                      Resign <FaFlag className="ml-1" size="0.9em"/>
+                    </button>
+                )}
+            </div>
+
             {gameMode === 'online' && onlineGameIdForStorage && isGameSetupComplete && (
                 <div className={`mt-2 p-2 rounded-lg text-xs shadow-md ${theme === 'dark' ? 'bg-slate-700/50 text-slate-300 border border-slate-600/50' : 'bg-gray-100/70 text-slate-600 border border-gray-300/50'}`}>
                     Online Game ID: <strong className={theme === 'dark' ? 'text-yellow-300' : 'text-yellow-600'}>{onlineGameIdForStorage}</strong> (Same device simulation)
                 </div>
             )}
-            <GameInfo currentPlayerName={turnIndicatorPlayerName()} gameStatus={gameStatus} onReset={() => handleResetAndOpenMenu(true) } isGameOver={gameStatus.isGameOver} theme={theme}/>
+            {/* GameInfo component removed from here */}
         </main>
       )}
 
-      {gameMode === 'puzzle' && isGameSetupComplete && currentPuzzle && (
+      {shouldShowPuzzleArea && (
         <main className="flex flex-col items-center space-y-3 sm:space-y-4 w-full mt-2">
             <PuzzleControls
                 theme={theme}
                 puzzle={currentPuzzle}
-                puzzleMessage={puzzleMessage}
                 onNextPuzzle={() => loadPuzzle(currentPuzzleIndex + 1 >= PUZZLES.length ? 0 : currentPuzzleIndex + 1)}
                 onPrevPuzzle={() => loadPuzzle(currentPuzzleIndex - 1 < 0 ? PUZZLES.length - 1 : currentPuzzleIndex - 1)}
                 onResetPuzzle={() => loadPuzzle(currentPuzzleIndex)}
@@ -1043,23 +1367,46 @@ const App: React.FC = () => {
                 isLastPuzzle={currentPuzzleIndex === PUZZLES.length - 1}
             />
             <Board boardState={boardState} onSquareClick={handleSquareClick} selectedPiecePosition={selectedPiecePosition} possibleMoves={possibleMoves} currentPlayer={currentPlayer} kingInCheckPosition={kingInCheckPosition} theme={theme} layoutSettings={layoutSettings} lastMove={lastMove} hintSuggestion={null} />
-             {/* Simplified display for puzzle mode, no player panels or full game info */}
-            <GameInfo 
-                currentPlayerName={currentPuzzle.playerToMove === PlayerColor.WHITE ? "White" : "Black"}
-                gameStatus={gameStatus} // gameStatus will hold puzzle description or success/fail
-                onReset={() => handleResetAndOpenMenu(true)} 
-                isGameOver={gameStatus.isGameOver} // Game over means puzzle solved or failed attempt
-                theme={theme}
-            />
+            {/* GameInfo component removed from here */}
         </main>
       )}
 
-      {promotionSquare && gameMode && isGameSetupComplete && (
+      {showTimeModeSelection && (
+        <TimeModeSelectionModal
+          isOpen={isTimeModeSelectionOpen}
+          onClose={handleTimeModeSelected}
+          theme={theme}
+        />
+      )}
+      {isOnlineWarningModalOpen && (
+        <OnlineWarningModal
+            isOpen={isOnlineWarningModalOpen}
+            onProceed={handleProceedFromOnlineWarning}
+            onCancel={() => { setIsOnlineWarningModalOpen(false); resetGameToWelcomeArena(false); }}
+            theme={theme}
+        />
+      )}
+      {promotionSquare && gameMode && isGameSetupComplete && !gameStatus.isGameOver && (
         <PromotionModal playerColor={boardState[promotionSquare[0]][promotionSquare[1]]?.color || currentPlayer} onPromote={handlePromotion} theme={theme} layoutSettings={layoutSettings} />
+      )}
+      {isChessGuideOpen && (
+        <ChessGuide 
+            isOpen={isChessGuideOpen} 
+            onClose={() => setIsChessGuideOpen(false)} 
+            theme={theme} 
+            layoutSettings={layoutSettings}
+        />
+      )}
+      {isChangelogModalOpen && (
+        <ChangelogModal
+          isOpen={isChangelogModalOpen}
+          onClose={() => setIsChangelogModalOpen(false)}
+          theme={theme}
+        />
       )}
        <footer className={`mt-auto pt-6 sm:pt-8 text-center text-xs ${theme === 'dark' ? 'text-slate-400/70' : 'text-slate-500/80'} select-none`}>
         <p>Select a piece, then its destination. Good luck!</p>
-        <p>&copy; 2025 Joyonto Karmakar. All Rights Reserved</p>
+        <p>{'©'} 2025 Joyonto Karmakar. All Rights Reserved</p>
       </footer>
     </div>
   );

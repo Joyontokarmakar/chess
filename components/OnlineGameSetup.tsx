@@ -161,7 +161,7 @@ const OnlineGameSetup: React.FC<OnlineGameSetupProps> = ({ onGameSetupComplete, 
             </button>
             <button onClick={onBackToMenu} className={`${backButtonClasses} mt-5`}>Back to Main Menu</button>
         </div>
-        <footer className={`absolute bottom-4 text-xs ${footerTextColor} select-none`}> <p>&copy; 2025 Joyonto Karmakar. All Rights Reserved</p> </footer>
+        <footer className={`absolute bottom-4 text-xs ${footerTextColor} select-none`}> <p>{'©'} 2025 Joyonto Karmakar. All Rights Reserved</p> </footer>
       </div>
     );
   }
@@ -214,7 +214,7 @@ const OnlineGameSetup: React.FC<OnlineGameSetupProps> = ({ onGameSetupComplete, 
           </form>
         )}
       </div>
-      <footer className={`absolute bottom-4 text-xs ${footerTextColor} select-none`}> <p>&copy; 2025 Joyonto Karmakar. All Rights Reserved</p> </footer>
+      <footer className={`absolute bottom-4 text-xs ${footerTextColor} select-none`}> <p>{'©'} 2025 Joyonto Karmakar. All Rights Reserved</p> </footer>
     </div>
   );
 };

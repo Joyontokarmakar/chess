@@ -90,10 +90,10 @@ const LayoutCustomizationModal: React.FC<LayoutCustomizationModalProps> = ({
 
   const handleApply = () => {
     onApplySettings({
+      ...currentSettings, // Preserve existing settings like isSoundEnabled, showResignButton, showGameToasts
       boardStyleId: selectedBoardStyle,
       whitePieceColor: selectedWhitePieceColor,
       blackPieceColor: selectedBlackPieceColor,
-      isSoundEnabled: currentSettings.isSoundEnabled, // Ensure isSoundEnabled is passed
     });
   };
 
@@ -179,7 +179,7 @@ const LayoutCustomizationModal: React.FC<LayoutCustomizationModalProps> = ({
                 <PieceDisplay 
                     piece={kingPieceWhite} 
                     size="24px" 
-                    color={getPieceIconColor(PlayerColor.WHITE, theme, { boardStyleId: selectedBoardStyle, whitePieceColor: selectedWhitePieceColor, isSoundEnabled: currentSettings.isSoundEnabled })} 
+                    color={getPieceIconColor(PlayerColor.WHITE, theme, { ...currentSettings, boardStyleId: selectedBoardStyle, whitePieceColor: selectedWhitePieceColor })} 
                 />
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
@@ -221,7 +221,7 @@ const LayoutCustomizationModal: React.FC<LayoutCustomizationModalProps> = ({
                  <PieceDisplay 
                     piece={kingPieceBlack} 
                     size="24px" 
-                    color={getPieceIconColor(PlayerColor.BLACK, theme, { boardStyleId: selectedBoardStyle, blackPieceColor: selectedBlackPieceColor, isSoundEnabled: currentSettings.isSoundEnabled })}
+                    color={getPieceIconColor(PlayerColor.BLACK, theme, { ...currentSettings, boardStyleId: selectedBoardStyle, blackPieceColor: selectedBlackPieceColor })}
                 />
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">

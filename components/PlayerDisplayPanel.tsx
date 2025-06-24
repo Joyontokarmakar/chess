@@ -1,7 +1,9 @@
+
 import React from 'react';
-import { Piece, PlayerColor, PieceType, Theme, LayoutSettings } from '../types'; 
+import { Piece, PlayerColor, PieceType, Theme, LayoutSettings, GameMode } from '../types'; 
 import PieceDisplay from './PieceDisplay';
 import { getPieceIconColor } from '../utils/styleUtils';
+import { FaPencilAlt } from 'react-icons/fa'; 
 
 interface PlayerDisplayPanelProps {
   playerName: string;
@@ -12,6 +14,10 @@ interface PlayerDisplayPanelProps {
   layoutSettings: LayoutSettings;
   timeLeft?: number | null; 
   timeLimit?: number | null; 
+  className?: string;
+  onRenameRequest?: (playerColor: PlayerColor) => void; // New prop for rename
+  gameMode?: GameMode; // New prop
+  isGameOver?: boolean; // New prop
 }
 
 const formatTime = (seconds: number | null | undefined): string => {
@@ -21,7 +27,7 @@ const formatTime = (seconds: number | null | undefined): string => {
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 };
 
-const PlayerDisplayPanel: React.FC<PlayerDisplayPanelProps> = ({
+export const PlayerDisplayPanel: React.FC<PlayerDisplayPanelProps> = ({
   playerName,
   playerColor,
   capturedPieces,
@@ -30,6 +36,10 @@ const PlayerDisplayPanel: React.FC<PlayerDisplayPanelProps> = ({
   layoutSettings,
   timeLeft,
   timeLimit,
+  className, 
+  onRenameRequest,
+  gameMode,
+  isGameOver,
 }) => {
   
   let panelBg = '';
@@ -42,6 +52,7 @@ const PlayerDisplayPanel: React.FC<PlayerDisplayPanelProps> = ({
   let timerCriticalColor = '';
   let timerBgClass = '';
   let activeTimerHighlightClass = '';
+  let editIconColorClass = '';
   
   const avatarPieceForDisplay: Piece = { 
     id: `avatar-${playerColor}`, 
@@ -65,6 +76,7 @@ const PlayerDisplayPanel: React.FC<PlayerDisplayPanelProps> = ({
     timerCriticalColor = 'text-red-400 font-bold animate-pulse';
     timerBgClass = 'bg-slate-800/50 border-slate-600/70';
     activeTimerHighlightClass = 'ring-1 ring-sky-300/70 shadow-[0_0_8px_rgba(56,189,248,0.35)]';
+    editIconColorClass = 'text-slate-400 hover:text-sky-400';
   } else { // Light theme
     panelBg = playerColor === PlayerColor.WHITE ? 'bg-white/50' : 'bg-slate-50/60';
     baseBorder = 'border-gray-300/60';
@@ -76,6 +88,7 @@ const PlayerDisplayPanel: React.FC<PlayerDisplayPanelProps> = ({
     timerCriticalColor = 'text-red-600 font-bold animate-pulse';
     timerBgClass = 'bg-gray-100/70 border-gray-300/80';
     activeTimerHighlightClass = 'ring-1 ring-sky-600/70 shadow-[0_0_8px_rgba(14,165,233,0.25)]';
+    editIconColorClass = 'text-slate-500 hover:text-sky-600';
   }
   
   const highlightClasses = isCurrentTurn 
@@ -105,10 +118,11 @@ const PlayerDisplayPanel: React.FC<PlayerDisplayPanelProps> = ({
 
   const capturedPieceIconSize = "18px";
 
+  const canRename = onRenameRequest && (gameMode === 'friend' || gameMode === 'computer') && !isGameOver;
 
   return (
     <div
-      className={`w-full max-w-lg p-1.5 sm:p-2 rounded-xl shadow-xl ${panelBg} backdrop-blur-lg border-2 flex items-start space-x-2 sm:space-x-3 ${highlightClasses} transition-all duration-250 ease-in-out`}
+      className={`w-full max-w-lg p-1.5 sm:p-2 rounded-xl shadow-xl ${panelBg} backdrop-blur-lg border-2 flex items-start space-x-2 sm:space-x-3 ${highlightClasses} transition-all duration-250 ease-in-out ${className || ''}`}
       style={{ '--shadow-color': currentShadowColor } as React.CSSProperties}
     >
       <div className="flex flex-col items-center justify-start w-12 sm:w-14 flex-shrink-0 pt-0.5">
@@ -118,9 +132,21 @@ const PlayerDisplayPanel: React.FC<PlayerDisplayPanelProps> = ({
             color={avatarIconColor}
             className="mb-0.5 sm:mb-1"
         />
-        <p className={`text-xs sm:text-sm font-semibold ${nameTextColor} text-center break-words w-full`}>
-          {playerName}
-        </p>
+        <div className="flex items-center space-x-1">
+            <p className={`text-xs sm:text-sm font-semibold ${nameTextColor} text-center break-words max-w-[calc(100%-1rem)]`}>
+                {playerName}
+            </p>
+            {canRename && (
+                <button 
+                    onClick={() => onRenameRequest(playerColor)} 
+                    className={`p-0.5 rounded-full ${editIconColorClass} transition-colors duration-150 focus:outline-none focus-visible:ring-1 ${theme === 'dark' ? 'focus-visible:ring-sky-300' : 'focus-visible:ring-sky-500'}`}
+                    aria-label={`Rename ${playerName}`}
+                    title={`Rename ${playerName}`}
+                >
+                    <FaPencilAlt size="0.65rem" />
+                </button>
+            )}
+        </div>
       </div>
 
       <div className="flex-1 min-w-0">
@@ -159,5 +185,3 @@ const PlayerDisplayPanel: React.FC<PlayerDisplayPanelProps> = ({
     </div>
   );
 };
-
-export default PlayerDisplayPanel;
