@@ -46,7 +46,7 @@ export interface MakeMoveResult {
   capturedPiece: Piece | null;
 }
 
-export type GameMode = 'friend' | 'computer' | 'online' | 'loaded_friend' | 'puzzle' | null;
+export type GameMode = 'friend' | 'computer' | 'online' | 'loaded_friend' | 'puzzle' | 'coach' | null;
 
 export interface AIMove {
   from: Position;
@@ -97,7 +97,7 @@ export interface SavedGame {
   id: string;
   name: string;
   timestamp: number;
-  gameMode: 'friend' | 'computer' | 'loaded_friend';
+  gameMode: 'friend' | 'computer' | 'loaded_friend' | 'coach';
   boardState: BoardState;
   currentPlayer: PlayerColor;
   player1Name: string;
@@ -109,7 +109,7 @@ export interface SavedGame {
   gameStatus: GameStatus;
   kingInCheckPosition: Position | null;
   originalLocalPlayerColor?: PlayerColor | null;
-  aiDifficulty?: AIDifficultyLevel; // For saved AI games
+  aiDifficulty?: AIDifficultyLevel; // For saved AI games (and Coach mode)
   timeLimitPerPlayer: number | null;
   player1TimeLeft: number | null;
   player2TimeLeft: number | null;
@@ -124,8 +124,10 @@ export interface LayoutSettings {
   whitePieceColor?: string;
   blackPieceColor?: string;
   isSoundEnabled: boolean;
-  showResignButton: boolean; // Added
-  showGameToasts: boolean;   // Added
+  showResignButton: boolean;
+  showGameToasts: boolean;
+  showUndoButton: boolean;
+  showHintButton: boolean;
 }
 
 export const TIME_OPTIONS = {
@@ -198,3 +200,13 @@ export interface ToastItem {
   type: ToastType;
   duration?: number; // Optional duration in ms
 }
+
+// --- Welcome Arena Menu Item Type ---
+export type WelcomeArenaMenuItemId = GameMode | 'hof' | 'puzzle';
+
+export interface WelcomeArenaMenuItem {
+  id: WelcomeArenaMenuItemId;
+  label: string;
+  icon: string | React.ReactNode; 
+  baseColor: string; // key for theme classes
+};

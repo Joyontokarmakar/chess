@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { SquareState, Position, Theme, LayoutSettings, PlayerColor } from '../types';
 import PieceDisplay from './PieceDisplay';
@@ -74,14 +75,38 @@ const Square: React.FC<SquareProps> = ({
     ? `lm-${lastMoveForFlashKey.from.join('')}-${lastMoveForFlashKey.to.join('')}-${position.join('')}` 
     : `initial-${position.join('')}`;
 
+  const [row, col] = position;
+  const algebraicNotation = `${String.fromCharCode(97 + col)}${8 - row}`;
+
+  // Conditions to show labels on the edges of the board for a clean look
+  const showRankLabel = col === 0; // Show rank on 'a' file
+  const rankLabel = `${8 - row}`;
+
+  const showFileLabel = row === 7; // Show file on 1st rank
+  const fileLabel = String.fromCharCode(97 + col);
+
+  // A subtle text color that has decent contrast on both light and dark squares for each theme.
+  const notationColorClass = 'text-stone-700/50 dark:text-slate-300/50';
+
   return (
     <div
       className={squareClasses}
       onClick={() => onClick(position)}
       role="button"
       tabIndex={0}
-      aria-label={`Square ${String.fromCharCode(97 + position[1])}${8 - position[0]}${squareState ? `, ${squareState.color} ${squareState.type}` : ''}${isSelected ? ', selected' : ''}${isPossibleMove ? ', possible move' : ''}${showLastMoveHighlight ? ', part of last move' : ''}${showHintHighlight ? ', part of hint' : ''}`}
+      aria-label={`Square ${algebraicNotation}${squareState ? `, ${squareState.color} ${squareState.type}` : ''}${isSelected ? ', selected' : ''}${isPossibleMove ? ', possible move' : ''}${showLastMoveHighlight ? ', part of last move' : ''}${showHintHighlight ? ', part of hint' : ''}`}
     >
+      {showRankLabel && (
+        <span className={`absolute top-0.5 left-1 text-[0.6rem] font-bold select-none pointer-events-none ${notationColorClass}`}>
+          {rankLabel}
+        </span>
+      )}
+      {showFileLabel && (
+        <span className={`absolute bottom-0.5 right-1 text-[0.6rem] font-bold select-none pointer-events-none ${notationColorClass}`}>
+          {fileLabel}
+        </span>
+      )}
+
       {squareState && (
         <PieceDisplay 
           piece={squareState} 

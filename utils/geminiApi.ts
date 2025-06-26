@@ -30,13 +30,25 @@ function formatCastlingRightsForAI(castlingRights: CastlingRights): any {
     };
 }
 
+function formatMoveForExplanation(move: AIMove, board: BoardState, currentPlayer: PlayerColor): string {
+    const piece = board[move.from[0]][move.from[1]];
+    const pieceName = piece ? `${piece.color} ${piece.type}` : "piece"; // Should always be a piece
+    const fromAlg = String.fromCharCode(97 + move.from[1]) + (8 - move.from[0]);
+    const toAlg = String.fromCharCode(97 + move.to[1]) + (8 - move.to[0]);
+    let moveStr = `${pieceName} from ${fromAlg} to ${toAlg}`;
+    if (move.promotion) {
+        moveStr += ` promoting to ${move.promotion}`;
+    }
+    return moveStr;
+}
+
 
 export async function getComputerMove(
   boardState: BoardState,
   currentPlayer: PlayerColor, // This will be PlayerColor.BLACK for the AI
   castlingRights: CastlingRights,
   enPassantTarget: Position | null,
-  difficulty: AIDifficultyLevel = AIDifficultyLevel.MEDIUM // Default to medium
+  difficulty: AIDifficultyLevel = AIDifficultyLevel.MEDIUM 
 ): Promise<AIMove | null> {
   // Offline Random AI (Fallback or if API_KEY is missing)
   if (!ai) {
@@ -84,30 +96,40 @@ export async function getComputerMove(
     // Future: Could include move history for context if needed for very advanced AI
   };
 
-  let systemInstruction = `You are a chess engine playing as ${currentPlayer}. Your goal is to win.
-Provide the best move as a JSON object: {"from": [row, col], "to": [row, col]}.
-If pawn promotion: {"from": [row, col], "to": [row, col], "promotion": "Q" | "R" | "B" | "N"}.
-Board is 0-indexed: row 0 is Black's back rank, col 0 is Queen-side. Only legal moves.`;
-
-  let thinkingConfig: { thinkingBudget: number } | undefined = { thinkingBudget: 0 }; // Default for Medium/Easy
+  let systemInstruction: string;
+  let thinkingConfig: { thinkingBudget: number } | undefined; // Initialize as undefined, will be set in switch
 
   switch (difficulty) {
     case AIDifficultyLevel.EASY:
       systemInstruction = `You are a beginner chess player playing as ${currentPlayer}. Try to make legal moves. It's okay to make mistakes or less optimal moves. 
       Return move as JSON: {"from": [row, col], "to": [row, col], "promotion": "Q" | "R" | "B" | "N" (if any)}.`;
+      thinkingConfig = { thinkingBudget: 0 }; // Disable thinking for Easy
       break;
     case AIDifficultyLevel.MEDIUM:
-      // Uses default systemInstruction and thinkingConfig (fast)
+      systemInstruction = `You are a chess engine playing as ${currentPlayer}. Your goal is to win.
+Provide the best move as a JSON object: {"from": [row, col], "to": [row, col]}.
+If pawn promotion: {"from": [row, col], "to": [row, col], "promotion": "Q" | "R" | "B" | "N"}.
+Board is 0-indexed: row 0 is Black's back rank, col 0 is Queen-side. Only legal moves.`;
+      thinkingConfig = undefined; // Use default (enabled) thinking for Medium
       break;
     case AIDifficultyLevel.HARD:
       systemInstruction = `You are a strong chess engine playing as ${currentPlayer}. Analyze carefully and make strong positional and tactical moves.
       Return move as JSON: {"from": [row, col], "to": [row, col], "promotion": "Q" | "R" | "B" | "N" (if any)}.`;
-      thinkingConfig = undefined; // Allow more thinking time
+      thinkingConfig = undefined; // Allow more thinking time (default enabled)
       break;
     case AIDifficultyLevel.GRANDMASTER:
       systemInstruction = `You are a grandmaster-level chess AI playing as ${currentPlayer}. Play the absolute best chess possible, considering deep lines and complex strategies.
       Return move as JSON: {"from": [row,col], "to": [row,col], "promotion": "Q" | "R" | "B" | "N" (if any)}.`;
-      thinkingConfig = undefined; // Allow maximum thinking time
+      thinkingConfig = undefined; // Allow maximum thinking time (default enabled)
+      break;
+    default: // Fallback for any unexpected difficulty value
+      console.warn(`Unexpected AI difficulty: ${difficulty}. Defaulting to Medium settings.`);
+      systemInstruction = `You are a chess engine playing as ${currentPlayer}. Your goal is to win.
+Provide the best move as a JSON object: {"from": [row, col], "to": [row, col]}.
+If pawn promotion: {"from": [row, col], "to": [row, col], "promotion": "Q" | "R" | "B" | "N"}.
+Board is 0-indexed: row 0 is Black's back rank, col 0 is Queen-side. Only legal moves.`;
+      thinkingConfig = undefined; 
+      difficulty = AIDifficultyLevel.MEDIUM; // Coerce for logging
       break;
   }
   
@@ -120,7 +142,8 @@ Board is 0-indexed: row 0 is Black's back rank, col 0 is Queen-side. Only legal 
       config: {
         systemInstruction: systemInstruction,
         responseMimeType: "application/json",
-        ...(thinkingConfig && { thinkingConfig }), // Spread thinkingConfig only if it's defined
+        // Spread thinkingConfig only if it's defined (i.e., not undefined)
+        ...(thinkingConfig !== undefined && { thinkingConfig }), 
       }
     });
 
@@ -167,6 +190,55 @@ Board is 0-indexed: row 0 is Black's back rank, col 0 is Queen-side. Only legal 
 
   } catch (error) {
     console.error(`Error calling Gemini API for ${difficulty} AI or parsing response:`, error);
-    return null; // Fallback handled by App.tsx
+    // Fallback to offline AI if online AI fails for any reason other than missing key
+    if (API_KEY) { // Only try offline if API_KEY was present but call failed
+        console.log("Gemini API error. Falling back to offline random move generator.");
+        return getComputerMove(boardState, currentPlayer, castlingRights, enPassantTarget, AIDifficultyLevel.EASY); // Fallback to easy random
+    }
+    return null;
+  }
+}
+
+export async function getCoachMoveExplanation(
+  boardState: BoardState,
+  currentPlayer: PlayerColor,
+  castlingRights: CastlingRights,
+  enPassantTarget: Position | null,
+  suggestedMove: AIMove
+): Promise<string | null> {
+  if (!ai) {
+    return "AI Coach is offline. This is a good move because it follows standard chess principles.";
+  }
+
+  const formattedBoard = formatBoardForAI(boardState);
+  const formattedCastlingRights = formatCastlingRightsForAI(castlingRights);
+  const moveDescription = formatMoveForExplanation(suggestedMove, boardState, currentPlayer);
+
+  const systemInstruction = `You are an expert chess coach. The player (${currentPlayer}) is considering the move: ${moveDescription}.
+The current board state is (0-indexed, row 0 is Black's back rank, 'wP' is white Pawn, 'bR' is black Rook, '..' is empty):
+${JSON.stringify(formattedBoard)}
+Castling rights: ${JSON.stringify(formattedCastlingRights)}
+En Passant target: ${enPassantTarget ? JSON.stringify(enPassantTarget) : 'none'}
+Explain concisely (1-2 sentences, max 30 words) why this specific move (${moveDescription}) is a strong or strategically sound move for ${currentPlayer} in this situation. Focus on the immediate tactical or strategic benefits. Do not greet or use conversational filler. Be direct.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash-preview-04-17", // Ensure this uses a capable model
+      contents: `Explain the strategic value of the move: ${moveDescription}.`, // Main prompt content
+      config: {
+        systemInstruction: systemInstruction,
+        // No responseMimeType: "application/json" as we want text
+        // Thinking config can be default for explanations
+      }
+    });
+    
+    const explanation = response.text?.trim();
+    if (explanation) {
+      return explanation;
+    }
+    return "Could not retrieve an explanation at this time.";
+  } catch (error) {
+    console.error("Error calling Gemini API for coach explanation:", error);
+    return "An error occurred while fetching the explanation.";
   }
 }

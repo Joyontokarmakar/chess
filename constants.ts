@@ -19,6 +19,7 @@ export const INITIAL_CASTLING_RIGHTS: CastlingRights = {
 };
 
 export const AI_PLAYER_NAME = "Gemini AI";
+export const COACH_AI_PLAYER_NAME = "Chess Coach AI";
 
 export const AI_DIFFICULTY_LEVELS: AIDifficultyLevel[] = [
   AIDifficultyLevel.EASY,
@@ -332,6 +333,18 @@ export const PUZZLES: Puzzle[] = [
 
 // --- Changelog Data ---
 export const CHANGELOG_DATA: ChangelogVersion[] = [
+  {
+    version: "4.2",
+    title: "Modernization & User Experience",
+    date: "2024-08-02",
+    features: [
+        "New! Welcome Modal: A one-time welcome screen now greets new visitors.",
+        "Redesign! Modernized Resign Button: Resign buttons are now seamlessly integrated into player panels for a cleaner look.",
+        "Update! Relocated Game Buttons: The Undo and Hint buttons have been moved to either side of the chessboard for better access and layout balance.",
+        "New! UI Toggles: Added separate settings in the menu to show or hide the Undo and Hint buttons.",
+        "Fix! Hall of Fame Responsiveness: Ensured the Hall of Fame table is fully responsive and user-friendly on mobile devices.",
+    ],
+  },
   {
     version: "4.1",
     title: "UI/UX Enhancements & Customization",

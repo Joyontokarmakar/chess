@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Theme, GameMode as AppGameMode, LayoutSettings } from '../types'; // Renamed GameMode to avoid conflict
+import { Theme, GameMode as AppGameMode, LayoutSettings, WelcomeArenaMenuItemId } from '../types'; // Renamed GameMode to avoid conflict
 import ThemeToggle from './ThemeToggle';
 import SavedGamesList from './SavedGamesList';
 import type { SavedGame } from '../types';
@@ -10,9 +10,10 @@ interface MenuModalProps {
   theme: Theme;
   onToggleTheme: () => void;
   onResetToMainMenu: (navigateToWelcomeArena?: boolean) => void;
-  onSelectModeFromMenu: (mode: AppGameMode | 'hof' | 'puzzle') => void; // Added 'puzzle'
+  onSelectModeFromMenu: (mode: WelcomeArenaMenuItemId) => void; 
   onSaveCurrentGame?: () => void;
   canSaveGame: boolean;
+  gameMode: AppGameMode | null; // Added gameMode prop
   
   savedGames: SavedGame[];
   onLoadSavedGame: (gameId: string) => void;
@@ -38,6 +39,7 @@ const MenuModal: React.FC<MenuModalProps> = ({
   onSelectModeFromMenu,
   onSaveCurrentGame,
   canSaveGame,
+  gameMode, // Destructure gameMode
   savedGames,
   onLoadSavedGame,
   onDeleteSavedGame,
@@ -59,9 +61,10 @@ const MenuModal: React.FC<MenuModalProps> = ({
   const separatorClass = theme === 'dark' ? 'border-slate-700/80 my-3 sm:my-3.5' : 'border-gray-300/80 my-3 sm:my-3.5';
   const modeHeaderClass = `text-xs font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'} my-1.5 text-center`;
   const scrollbarStyles = theme === 'dark' ? 'scrollbar-thumb-slate-600 scrollbar-track-slate-700/50' : 'scrollbar-thumb-gray-400 scrollbar-track-gray-200/50';
+  const settingsToggleContainerClass = `p-0 rounded-lg border-none ${theme === 'dark' ? 'bg-slate-700/60 border-slate-600/80' : 'bg-gray-200/80 border-gray-300/80'}`;
 
 
-  const getButtonThemeClasses = (action: 'save' | 'load' | 'reset' | 'themeContainer' | 'close' | 'mode' | 'hof' | 'customize_layout' | 'chess_guide' | 'game_settings' | 'sound_toggle_container' | 'back_to_main' | 'puzzle_mode' | 'changelog', baseColor?: string) => {
+  const getButtonThemeClasses = (action: 'save' | 'load' | 'reset' | 'themeContainer' | 'close' | 'mode' | 'hof' | 'customize_layout' | 'chess_guide' | 'game_settings' | 'sound_toggle_container' | 'back_to_main' | 'puzzle_mode' | 'changelog' | 'coach_mode', baseColor?: string) => {
     const commonButtonStyles = `${smallWideButtonBase}`;
     if (theme === 'dark') {
       switch(action) {
@@ -78,6 +81,8 @@ const MenuModal: React.FC<MenuModalProps> = ({
             return `${commonButtonStyles} bg-cyan-600/70 hover:bg-cyan-500/80 border-cyan-500/50 text-white focus-visible:ring-cyan-400`;
         case 'puzzle_mode':
              return `${commonButtonStyles} bg-lime-600/70 hover:bg-lime-500/80 border-lime-500/50 text-white focus-visible:ring-lime-400`;
+        case 'coach_mode':
+             return `${commonButtonStyles} bg-indigo-600/70 hover:bg-indigo-500/80 border-indigo-500/50 text-white focus-visible:ring-indigo-400`; // Example color for Coach
         case 'themeContainer': 
         case 'sound_toggle_container':
             return `p-2.5 rounded-lg border bg-slate-700/60 border-slate-600/80`;
@@ -107,6 +112,8 @@ const MenuModal: React.FC<MenuModalProps> = ({
             return `${commonButtonStyles} bg-cyan-500/80 hover:bg-cyan-600/90 border-cyan-400/60 text-white focus-visible:ring-cyan-500`;
         case 'puzzle_mode':
             return `${commonButtonStyles} bg-lime-500/80 hover:bg-lime-600/90 border-lime-400/60 text-white focus-visible:ring-lime-500`;
+        case 'coach_mode':
+            return `${commonButtonStyles} bg-indigo-500/80 hover:bg-indigo-600/90 border-indigo-400/60 text-white focus-visible:ring-indigo-500`; // Example for Coach
         case 'themeContainer': 
         case 'sound_toggle_container':
             return `p-2.5 rounded-lg border bg-gray-200/80 border-gray-300/80`;
@@ -141,7 +148,7 @@ const MenuModal: React.FC<MenuModalProps> = ({
     onClose();
   }
 
-  const handleModeSelection = (mode: AppGameMode | 'hof' | 'puzzle') => {
+  const handleModeSelection = (mode: WelcomeArenaMenuItemId) => {
     onSelectModeFromMenu(mode);
     onClose();
   };
@@ -180,6 +187,20 @@ const MenuModal: React.FC<MenuModalProps> = ({
     });
   };
 
+  const handleUndoButtonToggle = () => {
+    onLayoutSettingsChange({
+      ...layoutSettings,
+      showUndoButton: !layoutSettings.showUndoButton,
+    });
+  };
+
+  const handleHintButtonToggle = () => {
+    onLayoutSettingsChange({
+      ...layoutSettings,
+      showHintButton: !layoutSettings.showHintButton,
+    });
+  };
+
   const handleOverlayClick = () => {
     setMenuView('main'); 
     onClose();
@@ -213,7 +234,7 @@ const MenuModal: React.FC<MenuModalProps> = ({
         <div className={`flex-grow overflow-y-auto scrollbar-thin ${scrollbarStyles} pr-1 -mr-3`}>
           {menuView === 'main' && (
             <div className="space-y-3 sm:space-y-3.5 pb-2 pr-2">
-              <div className={`my-3 sm:mt-0 p-0 rounded-lg border-none ${getButtonThemeClasses('themeContainer', '')}`}>
+              <div className={settingsToggleContainerClass}>
                 <ThemeToggle theme={theme} onToggle={onToggleTheme} />
               </div>
               
@@ -250,6 +271,13 @@ const MenuModal: React.FC<MenuModalProps> = ({
               >
                 <span className="mr-2 text-lg">🤖</span> Play with AI
               </button>
+               <button
+                onClick={() => handleModeSelection('coach')}
+                className={getButtonThemeClasses('coach_mode')}
+                aria-label="Learn with Coach"
+              >
+                <span className="mr-2 text-lg">🧑‍🏫</span> Learn with Coach
+              </button>
               <button
                 onClick={() => handleModeSelection('online')}
                 className={getButtonThemeClasses('mode', 'online')}
@@ -267,14 +295,16 @@ const MenuModal: React.FC<MenuModalProps> = ({
 
               <hr className={separatorClass} />
               
-              <button 
-                onClick={handleSaveGame}
-                className={getButtonThemeClasses('save', '')}
-                disabled={!canSaveGame}
-                aria-label="Save Current Game"
-              >
-                <span className="mr-2 text-lg">💾</span> Save Current Game
-              </button>
+              {gameMode === 'friend' && (
+                <button 
+                  onClick={handleSaveGame}
+                  className={getButtonThemeClasses('save', '')}
+                  disabled={!canSaveGame} // canSaveGame is now more specific from App.tsx
+                  aria-label="Save Current Game"
+                >
+                  <span className="mr-2 text-lg">💾</span> Save Current Game
+                </button>
+              )}
               <button 
                 onClick={() => setMenuView('savedGames')}
                 className={getButtonThemeClasses('load', '')}
@@ -332,7 +362,7 @@ const MenuModal: React.FC<MenuModalProps> = ({
                     <span className="mr-2 text-lg">🎨</span> Customize Appearance
                 </button>
 
-                <div className={`p-0 rounded-lg border-none ${getButtonThemeClasses('sound_toggle_container', '')}`}>
+                <div className={settingsToggleContainerClass}>
                     <div className="flex items-center justify-between w-full p-2">
                         <span className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
                             Sounds: {layoutSettings.isSoundEnabled ? 'On' : 'Off'}
@@ -353,7 +383,7 @@ const MenuModal: React.FC<MenuModalProps> = ({
                     </div>
                 </div>
 
-                <div className={`p-0 rounded-lg border-none ${getButtonThemeClasses('sound_toggle_container', '')}`}>
+                <div className={settingsToggleContainerClass}>
                     <div className="flex items-center justify-between w-full p-2">
                         <span className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
                             Resign Buttons: {layoutSettings.showResignButton ? 'On' : 'Off'}
@@ -374,7 +404,7 @@ const MenuModal: React.FC<MenuModalProps> = ({
                     </div>
                 </div>
 
-                <div className={`p-0 rounded-lg border-none ${getButtonThemeClasses('sound_toggle_container', '')}`}>
+                <div className={settingsToggleContainerClass}>
                     <div className="flex items-center justify-between w-full p-2">
                         <span className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
                             Game Toasts: {layoutSettings.showGameToasts ? 'On' : 'Off'}
@@ -389,6 +419,48 @@ const MenuModal: React.FC<MenuModalProps> = ({
                         />
                         <label htmlFor="toasts-switch" className="theme-switch-label"> 
                             <span className="theme-switch-icon">{layoutSettings.showGameToasts ? '🔔' : '🔕'}</span>
+                            <span className="theme-switch-icon" style={{opacity:0}}>X</span> 
+                            <span className="theme-switch-ball"></span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div className={settingsToggleContainerClass}>
+                    <div className="flex items-center justify-between w-full p-2">
+                        <span className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                            Undo Button: {layoutSettings.showUndoButton ? 'On' : 'Off'}
+                        </span>
+                        <input
+                            type="checkbox"
+                            id="undo-button-switch"
+                            className="theme-switch-checkbox" 
+                            checked={layoutSettings.showUndoButton}
+                            onChange={handleUndoButtonToggle}
+                            aria-label="Toggle undo button"
+                        />
+                        <label htmlFor="undo-button-switch" className="theme-switch-label"> 
+                            <span className="theme-switch-icon">↩️</span>
+                            <span className="theme-switch-icon" style={{opacity:0}}>X</span> 
+                            <span className="theme-switch-ball"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div className={settingsToggleContainerClass}>
+                    <div className="flex items-center justify-between w-full p-2">
+                        <span className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                            Hint Button: {layoutSettings.showHintButton ? 'On' : 'Off'}
+                        </span>
+                        <input
+                            type="checkbox"
+                            id="hint-button-switch"
+                            className="theme-switch-checkbox" 
+                            checked={layoutSettings.showHintButton}
+                            onChange={handleHintButtonToggle}
+                            aria-label="Toggle hint button"
+                        />
+                        <label htmlFor="hint-button-switch" className="theme-switch-label"> 
+                            <span className="theme-switch-icon">💡</span>
                             <span className="theme-switch-icon" style={{opacity:0}}>X</span> 
                             <span className="theme-switch-ball"></span>
                         </label>

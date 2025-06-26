@@ -7,6 +7,7 @@ const THEME_KEY = 'chessThemePreference';
 const SAVED_GAMES_KEY = 'chessSavedGames';
 const MAX_SAVED_GAMES = 5;
 const LAYOUT_SETTINGS_KEY = 'chessLayoutSettings';
+export const FIRST_VISIT_KEY = 'chessGameFirstVisitDone';
 
 
 // --- Theme ---
@@ -171,13 +172,16 @@ export function getLayoutSettings(): LayoutSettings | null {
     const settingsJson = localStorage.getItem(LAYOUT_SETTINGS_KEY);
     if (settingsJson) {
       const parsed = JSON.parse(settingsJson) as Partial<LayoutSettings>; // Partial for backward compatibility
+      // Ensure all keys for LayoutSettings are returned with defaults for backward compatibility
       return {
         boardStyleId: parsed.boardStyleId || 'default-dark',
         whitePieceColor: parsed.whitePieceColor,
         blackPieceColor: parsed.blackPieceColor,
         isSoundEnabled: typeof parsed.isSoundEnabled === 'boolean' ? parsed.isSoundEnabled : true,
-        showResignButton: typeof parsed.showResignButton === 'boolean' ? parsed.showResignButton : true, // Default to true
-        showGameToasts: typeof parsed.showGameToasts === 'boolean' ? parsed.showGameToasts : true,     // Default to true
+        showResignButton: typeof parsed.showResignButton === 'boolean' ? parsed.showResignButton : true,
+        showGameToasts: typeof parsed.showGameToasts === 'boolean' ? parsed.showGameToasts : true,
+        showUndoButton: typeof parsed.showUndoButton === 'boolean' ? parsed.showUndoButton : true,
+        showHintButton: typeof parsed.showHintButton === 'boolean' ? parsed.showHintButton : true,
       };
     }
   } catch (error) {
@@ -188,8 +192,37 @@ export function getLayoutSettings(): LayoutSettings | null {
 
 export function setLayoutSettings(settings: LayoutSettings): void {
   try {
-    localStorage.setItem(LAYOUT_SETTINGS_KEY, JSON.stringify(settings));
+    // Only store known LayoutSettings properties
+    const settingsToStore: LayoutSettings = {
+        boardStyleId: settings.boardStyleId,
+        whitePieceColor: settings.whitePieceColor,
+        blackPieceColor: settings.blackPieceColor,
+        isSoundEnabled: settings.isSoundEnabled,
+        showResignButton: settings.showResignButton,
+        showGameToasts: settings.showGameToasts,
+        showUndoButton: settings.showUndoButton,
+        showHintButton: settings.showHintButton,
+    };
+    localStorage.setItem(LAYOUT_SETTINGS_KEY, JSON.stringify(settingsToStore));
   } catch (error) {
     console.error("Error saving layout settings:", error);
+  }
+}
+
+// --- First Visit ---
+export function getFirstVisitDone(): boolean {
+  try {
+    return localStorage.getItem(FIRST_VISIT_KEY) === 'true';
+  } catch (error) {
+    console.error("Error retrieving first visit status:", error);
+    return false; // Assume not done if error
+  }
+}
+
+export function setFirstVisitDone(): void {
+  try {
+    localStorage.setItem(FIRST_VISIT_KEY, 'true');
+  } catch (error) {
+    console.error("Error saving first visit status:", error);
   }
 }

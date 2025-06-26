@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { GameMode, Theme, AIDifficultyLevel } from '../types';
-import { AI_PLAYER_NAME, AI_DIFFICULTY_LEVELS } from '../constants';
+import { AI_PLAYER_NAME, AI_DIFFICULTY_LEVELS, COACH_AI_PLAYER_NAME } from '../constants';
 
 interface PlayerNameEntryProps {
   gameMode: GameMode;
@@ -20,6 +20,8 @@ const PlayerNameEntry: React.FC<PlayerNameEntryProps> = ({ gameMode, onSetupComp
       onSetupComplete(p1Name.trim() || "Player 1", AI_PLAYER_NAME, selectedDifficulty);
     } else if (gameMode === 'friend') {
       onSetupComplete(p1Name.trim() || "Player 1", p2Name.trim() || "Player 2");
+    } else if (gameMode === 'coach') {
+      onSetupComplete(p1Name.trim() || "Player 1", COACH_AI_PLAYER_NAME, AIDifficultyLevel.GRANDMASTER);
     }
   };
   
@@ -53,17 +55,22 @@ const PlayerNameEntry: React.FC<PlayerNameEntryProps> = ({ gameMode, onSetupComp
         </div>
     );
   }
+  
+  let title = "Enter Player Names";
+  if (gameMode === 'computer') title = "Setup AI Game";
+  if (gameMode === 'coach') title = "Learn with Coach AI";
+
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-transparent p-4">
       <div className={`backdrop-blur-xl shadow-2xl p-7 sm:p-10 rounded-xl max-w-md w-full ${panelBgClass}`}>
         <h2 className={`text-2xl sm:text-3xl font-bold mb-8 text-center ${titleColorClass}`} style={{ textShadow: titleShadowClass}}>
-          {gameMode === 'computer' ? 'Setup AI Game' : 'Enter Player Names'}
+          {title}
         </h2>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label htmlFor="player1Name" className={`block text-sm font-semibold mb-1.5 ${labelColorP1}`}>
-              Player 1 (White)
+              Your Name (Player 1 - White)
             </label>
             <input
               type="text"
@@ -72,14 +79,14 @@ const PlayerNameEntry: React.FC<PlayerNameEntryProps> = ({ gameMode, onSetupComp
               onChange={(e) => setP1Name(e.target.value)}
               className={inputNormalClasses}
               maxLength={20}
-              placeholder="Enter P1 Name"
+              placeholder="Enter Your Name"
             />
           </div>
 
           {gameMode === 'friend' && (
             <div>
               <label htmlFor="player2Name" className={`block text-sm font-semibold mb-1.5 ${labelColorP2}`}>
-                Player 2 (Black)
+                Friend's Name (Player 2 - Black)
               </label>
               <input
                 type="text"
@@ -88,7 +95,7 @@ const PlayerNameEntry: React.FC<PlayerNameEntryProps> = ({ gameMode, onSetupComp
                 onChange={(e) => setP2Name(e.target.value)}
                 className={inputNormalClasses}
                 maxLength={20}
-                placeholder="Enter P2 Name"
+                placeholder="Enter Friend's Name"
               />
             </div>
           )}
@@ -97,7 +104,7 @@ const PlayerNameEntry: React.FC<PlayerNameEntryProps> = ({ gameMode, onSetupComp
             <>
               <div>
                 <label htmlFor="player2Name" className={`block text-sm font-semibold mb-1.5 ${labelColorP2}`}>
-                  Player 2 (Black)
+                  Opponent (Black)
                 </label>
                 <input
                   type="text"
@@ -130,6 +137,22 @@ const PlayerNameEntry: React.FC<PlayerNameEntryProps> = ({ gameMode, onSetupComp
               </div>
             </>
           )}
+          {gameMode === 'coach' && (
+             <div>
+                <label htmlFor="coachName" className={`block text-sm font-semibold mb-1.5 ${labelColorP2}`}>
+                  Your Coach (Black)
+                </label>
+                <input
+                  type="text"
+                  id="coachName"
+                  value={COACH_AI_PLAYER_NAME}
+                  disabled
+                  className={inputDisabledClasses}
+                />
+                <p className={`text-xs mt-1.5 ${smallTextColor}`}>Coach plays at Grandmaster level.</p>
+              </div>
+          )}
+
 
           <button
             type="submit"
