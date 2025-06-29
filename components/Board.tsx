@@ -1,5 +1,5 @@
 import React from 'react';
-import { BoardState, Position, PlayerColor, Theme, LayoutSettings, AIMove } from '../types';
+import { BoardState, Position, PlayerColor, Theme, LayoutSettings, AIMove, AnalyzedMove } from '../types';
 import Square from './Square';
 import { getBoardClasses } from '../utils/styleUtils'; 
 
@@ -13,8 +13,11 @@ interface BoardProps {
   theme: Theme;
   layoutSettings: LayoutSettings;
   lastMove: { from: Position; to: Position } | null;
-  hintSuggestion: AIMove | null; // For highlighting hints
-  hintKey?: string; // To re-trigger hint animation
+  hintSuggestion: AIMove | null;
+  hintKey?: string;
+  // New props for analysis mode
+  analyzedMove?: AnalyzedMove | null;
+  bestAlternativeMove?: AIMove | null;
 }
 
 const Board: React.FC<BoardProps> = ({
@@ -28,6 +31,8 @@ const Board: React.FC<BoardProps> = ({
   lastMove,
   hintSuggestion,
   hintKey,
+  analyzedMove,
+  bestAlternativeMove,
 }) => {
   const currentBoardStyle = getBoardClasses(layoutSettings.boardStyleId, theme);
 
@@ -53,6 +58,13 @@ const Board: React.FC<BoardProps> = ({
           const isHintFromSquare = !!(hintSuggestion && hintSuggestion.from[0] === rowIndex && hintSuggestion.from[1] === colIndex);
           const isHintToSquare = !!(hintSuggestion && hintSuggestion.to[0] === rowIndex && hintSuggestion.to[1] === colIndex);
 
+          // Analysis props
+          const isAnalyzedMoveFrom = !!(analyzedMove && analyzedMove.from[0] === rowIndex && analyzedMove.from[1] === colIndex);
+          const isAnalyzedMoveTo = !!(analyzedMove && analyzedMove.to[0] === rowIndex && analyzedMove.to[1] === colIndex);
+          const moveClassification = analyzedMove ? analyzedMove.classification : null;
+          const isBestAlternativeMoveFrom = !!(bestAlternativeMove && bestAlternativeMove.from[0] === rowIndex && bestAlternativeMove.from[1] === colIndex);
+          const isBestAlternativeMoveTo = !!(bestAlternativeMove && bestAlternativeMove.to[0] === rowIndex && bestAlternativeMove.to[1] === colIndex);
+
           return (
             <Square
               key={`${rowIndex}-${colIndex}`}
@@ -72,6 +84,11 @@ const Board: React.FC<BoardProps> = ({
               isHintFromSquare={isHintFromSquare}
               isHintToSquare={isHintToSquare}
               hintKey={hintKey}
+              isAnalyzedMoveFrom={isAnalyzedMoveFrom}
+              isAnalyzedMoveTo={isAnalyzedMoveTo}
+              moveClassification={moveClassification}
+              isBestAlternativeMoveFrom={isBestAlternativeMoveFrom}
+              isBestAlternativeMoveTo={isBestAlternativeMoveTo}
             />
           );
         })

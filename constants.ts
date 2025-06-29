@@ -1,11 +1,13 @@
 
+
 import React from 'react';
-import { PieceType, PlayerColor, AIDifficultyLevel, Puzzle, PuzzleDifficulty, CastlingRights, BoardState, Piece, Position, ChangelogVersion } from './types';
-import { FaChessKing, FaChessQueen, FaChessRook, FaChessBishop, FaChessKnight, FaChessPawn } from 'react-icons/fa';
+import { PieceType, PlayerColor, AIDifficultyLevel, Puzzle, PuzzleDifficulty, CastlingRights, BoardState, Piece, Position, ChangelogVersion, TimeOptionKey } from './types';
+import { FaChessQueen, FaChessRook, FaChessBishop, FaChessKnight, FaChessPawn } from 'react-icons/fa';
+import { GiChessKing } from 'react-icons/gi';
 
 // Maps PieceType to its corresponding Font Awesome icon component from react-icons.
 export const PIECE_ICON_COMPONENTS: Record<PieceType, React.ElementType> = {
-  [PieceType.KING]: FaChessKing,
+  [PieceType.KING]: GiChessKing,
   [PieceType.QUEEN]: FaChessQueen,
   [PieceType.ROOK]: FaChessRook,
   [PieceType.BISHOP]: FaChessBishop,
@@ -132,6 +134,12 @@ export const SOUND_MOVE = 'https://actions.google.com/sounds/v1/sports/wooden_ba
 export const SOUND_CAPTURE = 'https://actions.google.com/sounds/v1/doors/screen_door_close.ogg';
 export const SOUND_WIN = 'https://actions.google.com/sounds/v1/cartoon/magic_chime.ogg';
 
+export const TIME_OPTIONS: Record<TimeOptionKey, number> = {
+  '3 min': 180,
+  '5 min': 300,
+  '10 min': 600,
+  '30 min': 1800,
+};
 
 export const BOARD_STYLE_CONFIG = {
   'default-dark': {
@@ -333,6 +341,20 @@ export const PUZZLES: Puzzle[] = [
 
 // --- Changelog Data ---
 export const CHANGELOG_DATA: ChangelogVersion[] = [
+  {
+    version: "4.3",
+    title: "Architectural Fixes & UI Enhancements",
+    date: "2024-08-04",
+    features: [
+        "Fix! Critical Game Logic: Overhauled application architecture to fix a major bug that prevented game modes (Play AI, Friend, Coach, Puzzle) from launching.",
+        "New! Multi-Game Analysis History: Access a list of your last 10 games and launch a detailed, move-by-move analysis for any of them.",
+        "New! Informational Pages: Added 'About the Developer', 'Terms & Conditions', and 'Privacy Policy' pages, accessible from the footer for transparency.",
+        "Enhancement! Visual Refresh: Redesigned all menu buttons with unique, subtle gradients for a more polished and intuitive UI.",
+        "Enhancement! Game Over screen now includes 'Rematch' and 'Back to Home' options for a better user flow.",
+        "Enhancement! New King piece icon for better visual clarity, avoiding confusion with the Queen.",
+        "Fix! Puzzle mode now initializes and functions correctly.",
+    ],
+  },
   {
     version: "4.2",
     title: "Modernization & User Experience",

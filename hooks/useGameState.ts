@@ -1,12 +1,10 @@
 
-
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import {
   BoardState, PlayerColor, Position, PieceType, CastlingRights, GameStatus, Piece,
-  MakeMoveResult, GameOverReason, GameMode, OnlineGameState, ToastType,
-  MoveHistoryEntry, Puzzle, PuzzleSolutionMove
+  GameOverReason, GameMode, OnlineGameState, ToastType, Puzzle
 } from '../types';
-import { createInitialBoard, INITIAL_CASTLING_RIGHTS, SOUND_CAPTURE, SOUND_MOVE, SOUND_WIN } from '../constants';
+import { createInitialBoard, INITIAL_CASTLING_RIGHTS, SOUND_CAPTURE, SOUND_MOVE, SOUND_WIN, PUZZLES, parseFEN } from '../constants';
 import {
   getPossibleMoves, makeMove as performMakeMoveLogic, isKingInCheck, isCheckmate, isStalemate,
   findKingPosition, createDeepBoardCopy
@@ -24,22 +22,17 @@ interface UseGameStateProps {
   determineToastTypeForGameStatus: (status: GameStatus) => ToastType;
   setPlayerAttemptingResign: React.Dispatch<React.SetStateAction<PlayerColor | null>>;
   setIsResignModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  playerAttemptingResign: PlayerColor | null; // Needed for resignation logic
+  playerAttemptingResign: PlayerColor | null;
   gameMode: GameMode | null; 
   gameStartTimeStamp: number | null; 
+  setPlayer1Name: (name: string) => void;
+  setPlayer2Name: (name: string, gameMode?: GameMode) => void;
   // Online play dependencies
   onlineGameIdForStorage: string | null;
   isOnlineGameReadyForStorage: boolean;
   updateOnlineGameState: (gameId: string, updatedState: Partial<OnlineGameState>) => void;
   lastMoveByRef: React.MutableRefObject<PlayerColor | null>;
-  // Puzzle mode dependencies
-  currentPuzzle: Puzzle | null;
-  handleSuccessfulPuzzleMove: (comment?: string) => void;
-  // Timer dependencies
-  player1TimeLeft: number | null;
-  player2TimeLeft: number | null;
 }
-
 
 const pieceTypeToName = (type: PieceType): string => {
   switch (type) {
@@ -54,7 +47,7 @@ const pieceTypeToName = (type: PieceType): string => {
 };
 
 
-export const useGameState = (props: UseGameStateProps) => {
+export const useGameState = (props: any) => {
   const [boardState, setBoardState] = useState<BoardState>(createInitialBoard());
   const [currentPlayer, setCurrentPlayer] = useState<PlayerColor>(PlayerColor.WHITE);
   const [selectedPiecePosition, setSelectedPiecePosition] = useState<Position | null>(null);
@@ -69,11 +62,15 @@ export const useGameState = (props: UseGameStateProps) => {
   const [capturedByBlack, setCapturedByBlack] = useState<Piece[]>([]);
   const [hasWinSoundPlayedThisGame, setHasWinSoundPlayedThisGame] = useState<boolean>(false);
 
+  // --- Puzzle Mode State ---
+  const [currentPuzzleIndex, setCurrentPuzzleIndex] = useState<number>(0);
+  const [currentPuzzle, setCurrentPuzzleState] = useState<Puzzle | null>(null);
+  const [puzzleSolutionStep, setPuzzleSolutionStep] = useState<number>(0);
+
   const setGameStatus = useCallback((status: GameStatus) => {
     setGameStatusState(status);
     props.addToast(status.message, props.determineToastTypeForGameStatus(status));
   }, [props.addToast, props.determineToastTypeForGameStatus]);
-
 
   const updateGameStatus = useCallback(async (
     board: BoardState, actingPlayer: PlayerColor, currentCR: CastlingRights,
@@ -140,10 +137,21 @@ export const useGameState = (props: UseGameStateProps) => {
       setGameStatus
   ]);
 
+  const handleSuccessfulPuzzleMove = useCallback((comment?: string) => {
+    if (currentPuzzle && puzzleSolutionStep + 1 >= currentPuzzle.solution.length) {
+      const successMsg = `Correct! Puzzle Solved: ${currentPuzzle.title}`;
+      props.addToast(successMsg, 'success');
+      setGameStatus({ message: `Puzzle Solved! ${comment || ''}`, isGameOver: true });
+    } else {
+      const correctMsg = `Correct! ${comment || 'Good move!'}`;
+      props.addToast(correctMsg, 'info');
+    }
+    setPuzzleSolutionStep(prev => prev + 1);
+  }, [currentPuzzle, puzzleSolutionStep, props.addToast, setGameStatus]);
+
   const applyMove = useCallback(async (
-    from: Position, to: Position, promotionType?: PieceType
+    from: Position, to: Position, promotionType?: PieceType, isPuzzleMove: boolean = false
   ) => {
-    
     const movingPiece = boardState[from[0]][from[1]];
     if (!movingPiece) return;
 
@@ -168,14 +176,24 @@ export const useGameState = (props: UseGameStateProps) => {
       playSound(SOUND_MOVE, props.layoutSettings.isSoundEnabled);
     }
 
-    setBoardState(newBoard); setCastlingRights(newCastlingRights); setEnPassantTarget(newEnPassantTarget);
+    setBoardState(newBoard);
+    
+    if (isPuzzleMove) {
+      const solutionMove = currentPuzzle?.solution.find(s => s.from[0] === from[0] && s.from[1] === from[1] && s.to[0] === to[0] && s.to[1] === to[1]);
+      handleSuccessfulPuzzleMove(solutionMove?.comment);
+      setSelectedPiecePosition(null); setPossibleMoves([]);
+      return;
+    }
+
+    setCastlingRights(newCastlingRights);
+    setEnPassantTarget(newEnPassantTarget);
 
     if (props.gameMode === 'online' && props.onlineGameIdForStorage && props.isOnlineGameReadyForStorage) {
       props.lastMoveByRef.current = currentPlayer;
     } else {
       props.lastMoveByRef.current = null;
     }
-
+    
     if (promSq && !promotionType) {
       setPromotionSquare(promSq);
       if (props.gameMode === 'online' && props.onlineGameIdForStorage) {
@@ -211,47 +229,57 @@ export const useGameState = (props: UseGameStateProps) => {
     props.getCurrentPlayerRealName, props.getOpponentPlayerName, props.layoutSettings.isSoundEnabled,
     capturedByWhite, capturedByBlack, props.gameMode, props.onlineGameIdForStorage,
     props.isOnlineGameReadyForStorage, props.updateOnlineGameState, props.lastMoveByRef,
-    props.player1TimeLeft, props.player2TimeLeft
+    props.player1TimeLeft, props.player2TimeLeft, handleSuccessfulPuzzleMove, currentPuzzle
   ]);
 
   const handleSquareClick = useCallback((pos: Position) => {
     if (gameStatus.isGameOver || promotionSquare) return;
 
-    if (props.gameMode === 'puzzle' && props.currentPuzzle) {
-      const piece = boardState[pos[0]][pos[1]];
-      if(selectedPiecePosition) {
-        if(possibleMoves.some(move => move[0] === pos[0] && move[1] === pos[1])) {
-          props.handleSuccessfulPuzzleMove(props.currentPuzzle.solution.find(
-            s => s.from[0] === selectedPiecePosition[0] && s.from[1] === selectedPiecePosition[1] && s.to[0] === pos[0] && s.to[1] === pos[1]
-          )?.comment);
+    if (selectedPiecePosition) { // A piece is selected, this is a move attempt
+        if (props.gameMode === 'puzzle') {
+            const solutionMove = currentPuzzle?.solution[puzzleSolutionStep];
+            if (solutionMove && solutionMove.from[0] === selectedPiecePosition[0] && solutionMove.from[1] === selectedPiecePosition[1] &&
+                solutionMove.to[0] === pos[0] && solutionMove.to[1] === pos[1]) {
+                
+                const piece = boardState[selectedPiecePosition[0]][selectedPiecePosition[1]];
+                if (piece?.type === PieceType.PAWN && (pos[0] === 0 || pos[0] === 7)) {
+                    if (solutionMove.promotion) {
+                        applyMove(selectedPiecePosition, pos, solutionMove.promotion, true);
+                    } else {
+                       applyMove(selectedPiecePosition, pos, undefined, true);
+                    }
+                } else {
+                    applyMove(selectedPiecePosition, pos, undefined, true);
+                }
+            } else {
+                props.addToast("Incorrect move. Try again!", 'error');
+                setSelectedPiecePosition(null);
+                setPossibleMoves([]);
+            }
         } else {
-          setSelectedPiecePosition(null); setPossibleMoves([]);
+            if (possibleMoves.some(move => move[0] === pos[0] && move[1] === pos[1])) {
+                applyMove(selectedPiecePosition, pos);
+            } else {
+                setSelectedPiecePosition(null);
+                setPossibleMoves([]);
+                const piece = boardState[pos[0]][pos[1]];
+                if (piece && piece.color === currentPlayer) {
+                    setSelectedPiecePosition(pos);
+                    setPossibleMoves(getPossibleMoves(boardState, pos, currentPlayer, castlingRights, enPassantTarget));
+                }
+            }
         }
-      } else if (piece && piece.color === currentPlayer) {
-        setSelectedPiecePosition(pos);
-        setPossibleMoves(getPossibleMoves(boardState, pos, currentPlayer, castlingRights, enPassantTarget));
-      }
-    } else { // Normal game modes
-      const piece = boardState[pos[0]][pos[1]];
-      if (selectedPiecePosition) {
-        if (possibleMoves.some(move => move[0] === pos[0] && move[1] === pos[1])) {
-          applyMove(selectedPiecePosition, pos);
-        } else {
-          setSelectedPiecePosition(null); setPossibleMoves([]);
-          if (piece && piece.color === currentPlayer) {
+    } else { // No piece selected, this is a selection attempt
+        const piece = boardState[pos[0]][pos[1]];
+        if (piece && piece.color === currentPlayer) {
             setSelectedPiecePosition(pos);
             setPossibleMoves(getPossibleMoves(boardState, pos, currentPlayer, castlingRights, enPassantTarget));
-          }
         }
-      } else if (piece && piece.color === currentPlayer) {
-        setSelectedPiecePosition(pos);
-        setPossibleMoves(getPossibleMoves(boardState, pos, currentPlayer, castlingRights, enPassantTarget));
-      }
     }
   }, [
     boardState, currentPlayer, selectedPiecePosition, possibleMoves, castlingRights, enPassantTarget,
-    gameStatus.isGameOver, promotionSquare, applyMove, props.gameMode, props.currentPuzzle,
-    props.handleSuccessfulPuzzleMove
+    gameStatus.isGameOver, promotionSquare, applyMove, props.gameMode, props.addToast,
+    currentPuzzle, puzzleSolutionStep
   ]);
 
   const handlePromotion = useCallback(async (pieceType: PieceType) => {
@@ -337,13 +365,62 @@ export const useGameState = (props: UseGameStateProps) => {
     setEnPassantTarget(null);
     setPromotionSquare(null);
     setKingInCheckPosition(null);
-    setGameStatusState({ message: "Select a mode.", isGameOver: false }); // Use direct setter to avoid initial toast
+    setGameStatusState({ message: "Select a mode.", isGameOver: false });
     setLastMove(null);
     setCapturedByWhite([]);
     setCapturedByBlack([]);
     setHasWinSoundPlayedThisGame(false);
+    // Reset puzzle state
+    setCurrentPuzzleIndex(0);
+    setCurrentPuzzleState(null);
+    setPuzzleSolutionStep(0);
   }, []);
 
+  const loadPuzzle = useCallback((index: number) => {
+    if (index < 0 || index >= PUZZLES.length) return;
+    
+    resetCoreGameState(); // Start with a clean slate
+    
+    const puzzle = PUZZLES[index];
+    setCurrentPuzzleState(puzzle);
+    setCurrentPuzzleIndex(index);
+    setPuzzleSolutionStep(0);
+    
+    let initialBoardFromPuzzle: BoardState;
+    let playerToMoveFromPuzzle: PlayerColor;
+    let castlingRightsFromPuzzle: CastlingRights = { ...INITIAL_CASTLING_RIGHTS };
+    let enPassantTargetFromPuzzle: Position | null = null;
+
+    if (puzzle.fen) {
+      const fenData = parseFEN(puzzle.fen);
+      initialBoardFromPuzzle = fenData.board;
+      playerToMoveFromPuzzle = fenData.playerToMove;
+      castlingRightsFromPuzzle = fenData.castlingRights;
+      enPassantTargetFromPuzzle = fenData.enPassantTarget;
+    } else if (puzzle.initialBoard) {
+      initialBoardFromPuzzle = createDeepBoardCopy(puzzle.initialBoard);
+      playerToMoveFromPuzzle = puzzle.playerToMove;
+      if (puzzle.initialCastlingRights) castlingRightsFromPuzzle = JSON.parse(JSON.stringify(puzzle.initialCastlingRights));
+      if (puzzle.initialEnPassantTarget) enPassantTargetFromPuzzle = [...puzzle.initialEnPassantTarget] as Position;
+    } else {
+      initialBoardFromPuzzle = createInitialBoard();
+      playerToMoveFromPuzzle = PlayerColor.WHITE;
+    }
+
+    setBoardState(initialBoardFromPuzzle);
+    setCurrentPlayer(playerToMoveFromPuzzle);
+    setCastlingRights(castlingRightsFromPuzzle);
+    setEnPassantTarget(enPassantTargetFromPuzzle);
+    const kcip = isKingInCheck(initialBoardFromPuzzle, playerToMoveFromPuzzle) ? findKingPosition(initialBoardFromPuzzle, playerToMoveFromPuzzle) : null;
+    setKingInCheckPosition(kcip);
+    
+    const puzzleStartMessage = puzzle.description;
+    setGameStatus({ message: puzzleStartMessage, isGameOver: false });
+    props.addToast(puzzleStartMessage, 'info');
+    props.setPlayer1Name(playerToMoveFromPuzzle === PlayerColor.WHITE ? "White" : "Black");
+    props.setPlayer2Name(playerToMoveFromPuzzle === PlayerColor.WHITE ? "Black" : "White");
+
+  }, [resetCoreGameState, props.addToast, props.setPlayer1Name, props.setPlayer2Name, setGameStatus]);
 
   return {
     boardState, setBoardState,
@@ -365,5 +442,11 @@ export const useGameState = (props: UseGameStateProps) => {
     updateGameStatus,
     executeResignation,
     resetCoreGameState,
+    // Puzzle exports
+    currentPuzzle,
+    currentPuzzleIndex,
+    puzzleSolutionStep,
+    setPuzzleSolutionStep,
+    loadPuzzle,
   };
 };

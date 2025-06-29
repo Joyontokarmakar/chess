@@ -1,7 +1,8 @@
-
 import { useState, useCallback } from 'react';
 import { PlayerColor } from '../types';
 import { getFirstVisitDone, setFirstVisitDone as persistFirstVisitDone } from '../utils/localStorageUtils';
+
+export type InfoPageType = 'about' | 'terms' | 'privacy';
 
 export const useUIState = (initialShowWelcomeModal: boolean) => {
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
@@ -15,6 +16,8 @@ export const useUIState = (initialShowWelcomeModal: boolean) => {
   const [playerToRename, setPlayerToRename] = useState<PlayerColor | null>(null);
   const [isOnlineWarningModalOpen, setIsOnlineWarningModalOpen] = useState<boolean>(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState<boolean>(initialShowWelcomeModal);
+  const [isGameHistoryModalOpen, setIsGameHistoryModalOpen] = useState<boolean>(false);
+  const [infoPage, setInfoPage] = useState<InfoPageType | null>(null);
 
   const handleWelcomeModalClose = useCallback(() => {
     setShowWelcomeModal(false);
@@ -32,6 +35,8 @@ export const useUIState = (initialShowWelcomeModal: boolean) => {
     setIsRenameModalOpen(false);
     setPlayerToRename(null);
     setIsOnlineWarningModalOpen(false);
+    setIsGameHistoryModalOpen(false);
+    setInfoPage(null);
     // setShowWelcomeModal(false); // Welcome modal is handled by first visit logic usually
   }, []);
 
@@ -48,6 +53,8 @@ export const useUIState = (initialShowWelcomeModal: boolean) => {
     isOnlineWarningModalOpen, setIsOnlineWarningModalOpen,
     showWelcomeModal,
     handleWelcomeModalClose,
+    isGameHistoryModalOpen, setIsGameHistoryModalOpen,
+    infoPage, setInfoPage,
     resetUIState,
   };
 };

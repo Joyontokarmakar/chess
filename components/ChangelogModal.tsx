@@ -22,15 +22,37 @@ const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose, theme 
   const scrollbarStyles = theme === 'dark' ? 'scrollbar-thumb-slate-600 scrollbar-track-slate-700/50' : 'scrollbar-thumb-gray-400 scrollbar-track-gray-200/50';
 
   const renderFeatureList = (features: string[]) => {
+    // This logic correctly groups child items under the most recent parent.
+    const groupedFeatures: { text: string; children: string[] }[] = [];
+    let currentParent: { text: string; children: string[] } | null = null;
+    for (const feature of features) {
+        if (feature.startsWith("  • ")) {
+            if (currentParent) {
+                currentParent.children.push(feature.substring(4)); // remove "  • "
+            }
+        } else {
+            currentParent = { text: feature, children: [] };
+            groupedFeatures.push(currentParent);
+        }
+    }
+
     return (
-      <ul className={`list-none pl-1 space-y-1 text-sm ${featureTextColorClass}`}>
-        {features.map((feature, index) => {
-          if (feature.startsWith("  • ")) {
-            return <li key={index} className="ml-4 list-disc list-inside">{feature.substring(4)}</li>;
-          }
-          return <li key={index} className="mt-1.5 font-medium">{feature}</li>;
-        })}
-      </ul>
+        <div className="changelog-list">
+            <ul className={`space-y-2 text-sm ${featureTextColorClass}`}>
+                {groupedFeatures.map((parentItem, index) => (
+                    <li key={index}>
+                        <span className="font-medium">{parentItem.text}</span>
+                        {parentItem.children.length > 0 && (
+                            <ul className={`space-y-1 mt-1.5`}>
+                                {parentItem.children.map((childText, childIndex) => (
+                                    <li key={childIndex}>{childText}</li>
+                                ))}
+                            </ul>
+                        )}
+                    </li>
+                ))}
+            </ul>
+        </div>
     );
   };
 

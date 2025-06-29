@@ -1,4 +1,3 @@
-
 import { BoardState, Piece, PieceType, PlayerColor, Position, CastlingRights, SquareState, MakeMoveResult } from '../types';
 
 export function createDeepBoardCopy(board: BoardState): BoardState {
@@ -345,4 +344,77 @@ export function makeMove(
   }
 
   return { newBoard, newCastlingRights, newEnPassantTarget, promotionSquare, capturedPiece };
+}
+
+/**
+ * Converts a board state to a FEN string.
+ * @param board The current board state.
+ * @param currentPlayer The player whose turn it is.
+ * @param castlingRights The current castling rights.
+ * @param enPassantTarget The current en passant target square, if any.
+ * @param halfmoveClock The number of halfmoves since the last capture or pawn advance.
+ * @param fullmoveNumber The number of the full move.
+ * @returns A FEN string representing the game state.
+ */
+export function boardToFEN(
+    board: BoardState,
+    currentPlayer: PlayerColor,
+    castlingRights: CastlingRights,
+    enPassantTarget: Position | null,
+    halfmoveClock: number = 0,
+    fullmoveNumber: number = 1
+): string {
+    let fen = '';
+    // 1. Piece placement
+    for (let r = 0; r < 8; r++) {
+        let emptyCount = 0;
+        for (let c = 0; c < 8; c++) {
+            const piece = board[r][c];
+            if (piece) {
+                if (emptyCount > 0) {
+                    fen += emptyCount;
+                    emptyCount = 0;
+                }
+                let pieceChar: string = piece.type;
+                if (piece.color === PlayerColor.BLACK) {
+                    pieceChar = pieceChar.toLowerCase();
+                }
+                fen += pieceChar;
+            } else {
+                emptyCount++;
+            }
+        }
+        if (emptyCount > 0) {
+            fen += emptyCount;
+        }
+        if (r < 7) {
+            fen += '/';
+        }
+    }
+
+    // 2. Active color
+    fen += ` ${currentPlayer === PlayerColor.WHITE ? 'w' : 'b'}`;
+
+    // 3. Castling availability
+    let castlingStr = '';
+    if (castlingRights[PlayerColor.WHITE].kingSide) castlingStr += 'K';
+    if (castlingRights[PlayerColor.WHITE].queenSide) castlingStr += 'Q';
+    if (castlingRights[PlayerColor.BLACK].kingSide) castlingStr += 'k';
+    if (castlingRights[PlayerColor.BLACK].queenSide) castlingStr += 'q';
+    fen += ` ${castlingStr || '-'}`;
+
+    // 4. En passant target square
+    if (enPassantTarget) {
+        const [row, col] = enPassantTarget;
+        const file = String.fromCharCode('a'.charCodeAt(0) + col);
+        const rank = 8 - row; // FEN ranks are 1-8 from Black's side
+        fen += ` ${file}${rank}`;
+    } else {
+        fen += ' -';
+    }
+
+    // 5. Halfmove clock & 6. Fullmove number
+    fen += ` ${halfmoveClock} ${fullmoveNumber}`;
+
+    return fen;
 }

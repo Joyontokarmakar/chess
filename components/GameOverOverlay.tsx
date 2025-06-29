@@ -4,9 +4,11 @@ import { GameStatus, Theme, PlayerColor } from '../types';
 interface GameOverOverlayProps {
   gameStatus: GameStatus;
   theme: Theme;
-  onPlayAgain: () => void;
+  onRematch: () => void;
+  onBackToHome: () => void;
   player1Name: string;
   player2Name: string;
+  onAnalyzeGame: () => void;
 }
 
 const ConfettiPiece: React.FC<{ theme: Theme }> = ({ theme }) => {
@@ -44,7 +46,7 @@ const ConfettiPiece: React.FC<{ theme: Theme }> = ({ theme }) => {
   return <div style={style} className="confetti-piece"></div>;
 };
 
-const GameOverOverlay: React.FC<GameOverOverlayProps> = ({ gameStatus, theme, onPlayAgain, player1Name, player2Name }) => {
+const GameOverOverlay: React.FC<GameOverOverlayProps> = ({ gameStatus, theme, onRematch, onBackToHome, player1Name, player2Name, onAnalyzeGame }) => {
   if (!gameStatus.isGameOver) {
     return null;
   }
@@ -87,21 +89,29 @@ const GameOverOverlay: React.FC<GameOverOverlayProps> = ({ gameStatus, theme, on
   const messageColorClass = theme === 'dark' ? 'text-slate-100' : 'text-slate-800';
   const subMessageColorClass = theme === 'dark' ? 'text-slate-300' : 'text-slate-600';
   
-  const buttonBaseClasses = `w-full sm:w-auto font-semibold py-3 px-7 rounded-lg text-lg shadow-xl hover:shadow-2xl transition-all duration-200 ease-in-out transform hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-opacity-75`;
-  const playAgainButtonThemeClass = theme === 'dark' 
+  const buttonBaseClasses = `w-full sm:w-auto font-semibold py-3 px-6 rounded-lg text-lg shadow-xl hover:shadow-2xl transition-all duration-200 ease-in-out transform hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-opacity-75`;
+  
+  const rematchButtonThemeClass = theme === 'dark' 
     ? `bg-gradient-to-r from-green-500/90 via-emerald-600/90 to-teal-600/90 hover:from-green-500/95 hover:via-emerald-600/95 hover:to-teal-600/95 text-white focus-visible:ring-emerald-400 shadow-emerald-500/30 hover:shadow-emerald-500/40`
     : `bg-gradient-to-r from-green-500 via-emerald-600 to-teal-600 hover:from-green-600 hover:via-emerald-700 hover:to-teal-700 text-white focus-visible:ring-emerald-400 shadow-emerald-600/30 hover:shadow-emerald-600/40`;
+  
+  const analyzeButtonThemeClass = theme === 'dark'
+    ? `bg-gradient-to-r from-indigo-500/90 via-purple-600/90 to-pink-600/90 hover:from-indigo-500/95 hover:via-purple-600/95 hover:to-pink-600/95 text-white focus-visible:ring-purple-400 shadow-purple-500/30 hover:shadow-purple-500/40`
+    : `bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 hover:from-indigo-600 hover:via-purple-700 hover:to-pink-700 text-white focus-visible:ring-purple-400 shadow-purple-600/30 hover:shadow-purple-600/40`;
 
+  const backToHomeButtonThemeClass = theme === 'dark'
+    ? 'bg-gradient-to-r from-slate-600/90 via-gray-700/90 to-slate-600/90 hover:from-slate-500/95 hover:via-gray-600/95 hover:to-slate-500/95 text-white focus-visible:ring-slate-400 shadow-gray-500/30 hover:shadow-gray-500/40'
+    : 'bg-gradient-to-r from-slate-400 via-gray-500 to-slate-400 hover:from-slate-500 hover:via-gray-600 hover:to-slate-500 text-white focus-visible:ring-gray-400 shadow-gray-600/30 hover:shadow-gray-600/40';
 
   return (
     <div className={`fixed inset-0 ${overlayBgClass} flex items-center justify-center z-[80] p-4`}>
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {Array.from({ length: numConfetti }).map((_, i) => (
+        {gameStatus.winner && Array.from({ length: numConfetti }).map((_, i) => (
           <ConfettiPiece key={i} theme={theme} />
         ))}
       </div>
       <div 
-        className={`relative p-6 sm:p-10 rounded-xl shadow-2xl text-center ${panelBgClass} w-full max-w-md`}
+        className={`relative p-6 sm:p-10 rounded-xl shadow-2xl text-center ${panelBgClass} w-full max-w-lg`}
       >
         <h1 className={`text-3xl sm:text-4xl font-bold mb-3 ${titleColorClass}`} style={{textShadow: theme === 'dark' ? '0 0 12px rgba(252, 211, 77, 0.5)' : '0 0 10px rgba(245, 158, 11, 0.4)'}}>
           Game Over!
@@ -112,13 +122,29 @@ const GameOverOverlay: React.FC<GameOverOverlayProps> = ({ gameStatus, theme, on
         <p className={`text-sm sm:text-base mb-6 ${subMessageColorClass}`}>
           {subMessage}
         </p>
-        <button
-          onClick={onPlayAgain}
-          className={`${buttonBaseClasses} ${playAgainButtonThemeClass}`}
-          aria-label="Play Again or Go to Menu"
-        >
-          New Game / Menu
-        </button>
+        <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
+            <button
+                onClick={onRematch}
+                className={`${buttonBaseClasses} ${rematchButtonThemeClass}`}
+                aria-label="Rematch"
+            >
+                Rematch
+            </button>
+            <button
+                onClick={onAnalyzeGame}
+                className={`${buttonBaseClasses} ${analyzeButtonThemeClass}`}
+                aria-label="Analyze Game"
+            >
+                Analyze Game
+            </button>
+            <button
+                onClick={onBackToHome}
+                className={`${buttonBaseClasses} ${backToHomeButtonThemeClass}`}
+                aria-label="Back to Home"
+            >
+                Back to Home
+            </button>
+        </div>
       </div>
     </div>
   );

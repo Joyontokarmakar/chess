@@ -1,6 +1,7 @@
+
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
-import { BoardState, PlayerColor, CastlingRights, Position, PieceType, AIMove, Piece, AIDifficultyLevel } from '../types';
-import { getPossibleMoves } from './chessLogic'; // Import getPossibleMoves
+import { BoardState, PlayerColor, CastlingRights, Position, PieceType, AIMove, Piece, AIDifficultyLevel, MoveHistoryEntry, GameAnalysis, AnalyzedMove } from '../types';
+import { getPossibleMoves } from './chessLogic';
 
 const API_KEY = process.env.API_KEY;
 if (!API_KEY) {
@@ -223,12 +224,10 @@ Explain concisely (1-2 sentences, max 30 words) why this specific move (${moveDe
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview-04-17", // Ensure this uses a capable model
-      contents: `Explain the strategic value of the move: ${moveDescription}.`, // Main prompt content
+      model: "gemini-2.5-flash-preview-04-17",
+      contents: `Explain the strategic value of the move: ${moveDescription}.`,
       config: {
         systemInstruction: systemInstruction,
-        // No responseMimeType: "application/json" as we want text
-        // Thinking config can be default for explanations
       }
     });
     
@@ -241,4 +240,101 @@ Explain concisely (1-2 sentences, max 30 words) why this specific move (${moveDe
     console.error("Error calling Gemini API for coach explanation:", error);
     return "An error occurred while fetching the explanation.";
   }
+}
+
+// --- Game Analysis ---
+
+function moveToString(move: { from: Position, to: Position, promotion?: PieceType }): string {
+    const fromAlg = String.fromCharCode(97 + move.from[1]) + (8 - move.from[0]);
+    const toAlg = String.fromCharCode(97 + move.to[1]) + (8 - move.to[0]);
+    return fromAlg + toAlg + (move.promotion?.toLowerCase() || '');
+}
+
+function uciToPositions(uci: string): { from: Position, to: Position, promotion?: PieceType } {
+    const fromCol = uci.charCodeAt(0) - 'a'.charCodeAt(0);
+    const fromRow = 8 - parseInt(uci.charAt(1), 10);
+    const toCol = uci.charCodeAt(2) - 'a'.charCodeAt(0);
+    const toRow = 8 - parseInt(uci.charAt(3), 10);
+    const promotion = uci.length === 5 ? uci.charAt(4).toUpperCase() as PieceType : undefined;
+    return { from: [fromRow, fromCol], to: [toRow, toCol], promotion };
+};
+
+export async function analyzeGame(moveHistory: MoveHistoryEntry[]): Promise<GameAnalysis | null> {
+    if (!ai) {
+        throw new Error("Gemini AI client not initialized. Analysis is unavailable.");
+    }
+
+    const movesUCI = moveHistory
+        .map(entry => entry.lastMove ? moveToString(entry.lastMove) : null)
+        .filter((move): move is string => move !== null);
+        
+    const systemInstruction = `You are a world-class chess grandmaster and analyst. You will be given a chess game as a sequence of moves in UCI format. Your task is to provide a comprehensive analysis of the game. You MUST identify key moments: blunders, mistakes, inaccuracies, and brilliant moves. For each move, provide a classification and a concise explanation. For significant mistakes/blunders, suggest a better alternative move. You MUST return the response as a single JSON object matching this TypeScript interface:
+\`\`\`typescript
+interface GameAnalysis {
+  summary: string; // A 2-3 sentence summary of the game flow and outcome.
+  fullAnalysis: Array<{
+    moveNumber: number; // 1-indexed move number for the player (1 for White's first, 1 for Black's first, 2 for White's second...)
+    color: 'White' | 'Black';
+    moveNotation: string; // The move made in UCI format, e.g., "e2e4"
+    san: string; // The move in Standard Algebraic Notation, e.g., "e4", "Nf3", "Bxc6+", "O-O". This is CRITICAL.
+    classification: 'blunder' | 'mistake' | 'inaccuracy' | 'good' | 'excellent' | 'brilliant' | 'book';
+    explanation: string; // e.g., "This move is a major blunder because it loses the queen."
+    bestAlternative?: { // Optional: suggest a better move for blunders/mistakes
+      moveNotation: string; // e.g., "g1f3"
+      san: string; // e.g., "Nf3"
+      explanation?: string; // Why this move is better
+    };
+  }>;
+}
+\`\`\`
+Do NOT include any text outside of the JSON object. The entire output must be valid JSON.`;
+
+    const promptPayload = {
+        moves: movesUCI,
+    };
+
+    try {
+        const response: GenerateContentResponse = await ai.models.generateContent({
+            model: "gemini-2.5-flash-preview-04-17",
+            contents: JSON.stringify(promptPayload),
+            config: {
+                systemInstruction: systemInstruction,
+                responseMimeType: "application/json",
+            }
+        });
+
+        let jsonStr = response.text.trim();
+        const fenceRegex = /^```(\w*)?\s*\n?(.*?)\n?\s*```$/s;
+        const match = jsonStr.match(fenceRegex);
+        if (match && match[2]) {
+          jsonStr = match[2].trim();
+        }
+        
+        const parsedAnalysis = JSON.parse(jsonStr) as GameAnalysis;
+
+        // Post-process to add from/to positions based on UCI
+        parsedAnalysis.fullAnalysis.forEach((analyzedMove: AnalyzedMove) => {
+            const { from, to, promotion } = uciToPositions(analyzedMove.moveNotation);
+            analyzedMove.from = from;
+            analyzedMove.to = to;
+            if (promotion) analyzedMove.promotion = promotion;
+
+            if (analyzedMove.bestAlternative) {
+                const { from: altFrom, to: altTo, promotion: altPromo } = uciToPositions(analyzedMove.bestAlternative.moveNotation);
+                analyzedMove.bestAlternative.from = altFrom;
+                analyzedMove.bestAlternative.to = altTo;
+                if (altPromo) analyzedMove.bestAlternative.promotion = altPromo;
+            }
+        });
+
+        parsedAnalysis.keyMoments = parsedAnalysis.fullAnalysis.filter(
+            m => m.classification === 'blunder' || m.classification === 'mistake' || m.classification === 'brilliant'
+        );
+
+        return parsedAnalysis;
+
+    } catch (error) {
+        console.error("Error calling Gemini API for game analysis:", error);
+        return null;
+    }
 }

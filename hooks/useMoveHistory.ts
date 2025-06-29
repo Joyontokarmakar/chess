@@ -1,10 +1,9 @@
-
 import { useState, useCallback } from 'react';
 import {
   MoveHistoryEntry, BoardState, PlayerColor, CastlingRights, Position, GameStatus, Piece,
   GameMode, ToastType, AIMove
 } from '../types';
-import { createDeepBoardCopy } from '../utils/chessLogic';
+import { createDeepBoardCopy, boardToFEN } from '../utils/chessLogic';
 
 interface UseMoveHistoryProps {
   gameStatus: GameStatus;
@@ -31,6 +30,7 @@ interface UseMoveHistoryProps {
   setPromotionSquare: React.Dispatch<React.SetStateAction<Position | null>>;
   setHintSuggestion: React.Dispatch<React.SetStateAction<AIMove | null>>;
   setCoachExplanation: React.Dispatch<React.SetStateAction<string | null>>;
+  moveHistory: MoveHistoryEntry[];
 }
 
 export const useMoveHistory = (props: UseMoveHistoryProps) => {
@@ -51,20 +51,28 @@ export const useMoveHistory = (props: UseMoveHistoryProps) => {
     kingInCheckPosition: Position | null, 
     lastMove: { from: Position; to: Position } | null,
     player1TimeLeft: number | null, 
-    player2TimeLeft: number | null
-  ): MoveHistoryEntry => ({
-    boardState: createDeepBoardCopy(boardState),
-    currentPlayer,
-    castlingRights: JSON.parse(JSON.stringify(castlingRights)),
-    enPassantTarget,
-    capturedByWhite: [...capturedByWhite],
-    capturedByBlack: [...capturedByBlack],
-    gameStatus: { ...gameStatus },
-    kingInCheckPosition,
-    lastMove: lastMove ? { ...lastMove } : null,
-    player1TimeLeft,
-    player2TimeLeft,
-  }), []);
+    player2TimeLeft: number | null,
+    moveCount: number,
+  ): MoveHistoryEntry => {
+    const fullMoveNumber = Math.floor(moveCount / 2) + 1;
+    // Note: Halfmove clock is simplified to 0 for this implementation.
+    const fen = boardToFEN(boardState, currentPlayer, castlingRights, enPassantTarget, 0, fullMoveNumber);
+
+    return {
+      boardState: createDeepBoardCopy(boardState),
+      currentPlayer,
+      castlingRights: JSON.parse(JSON.stringify(castlingRights)),
+      enPassantTarget,
+      capturedByWhite: [...capturedByWhite],
+      capturedByBlack: [...capturedByBlack],
+      gameStatus: { ...gameStatus },
+      kingInCheckPosition,
+      lastMove: lastMove ? { ...lastMove } : null,
+      fenBeforeMove: fen,
+      player1TimeLeft,
+      player2TimeLeft,
+    };
+  }, []);
 
 
   const handleUndoMove = useCallback(() => {

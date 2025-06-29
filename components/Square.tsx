@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { SquareState, Position, Theme, LayoutSettings, PlayerColor } from '../types';
+import { SquareState, Position, Theme, LayoutSettings, PlayerColor, MoveClassification } from '../types';
 import PieceDisplay from './PieceDisplay';
 import { BoardStyleClasses, getPieceIconColor } from '../utils/styleUtils';
 
@@ -18,10 +17,45 @@ interface SquareProps {
   isLastMoveFromSquare: boolean; 
   isLastMoveToSquare: boolean;
   lastMoveForFlashKey: { from: Position; to: Position } | null;
-  isHintFromSquare: boolean; // New prop for hint
-  isHintToSquare: boolean;   // New prop for hint
-  hintKey?: string; // To re-trigger hint animation
+  isHintFromSquare: boolean;
+  isHintToSquare: boolean;
+  hintKey?: string;
+  // New props for analysis mode
+  isAnalyzedMoveFrom: boolean;
+  isAnalyzedMoveTo: boolean;
+  moveClassification: MoveClassification | null;
+  isBestAlternativeMoveFrom: boolean;
+  isBestAlternativeMoveTo: boolean;
 }
+
+const getAnalysisHighlightClass = (classification: MoveClassification | null, theme: Theme): string => {
+    if (!classification) return '';
+
+    const common = 'ring-4 ring-inset';
+    if (theme === 'dark') {
+        switch (classification) {
+            case 'brilliant': return `${common} ring-green-400/80`;
+            case 'excellent': return `${common} ring-cyan-400/70`;
+            case 'good': return `${common} ring-blue-400/60`;
+            case 'inaccuracy': return `${common} ring-yellow-400/70`;
+            case 'mistake': return `${common} ring-orange-500/80`;
+            case 'blunder': return `${common} ring-red-600/90`;
+            case 'book': return `${common} ring-purple-400/60`;
+            default: return '';
+        }
+    } else { // Light theme
+        switch (classification) {
+            case 'brilliant': return `${common} ring-green-500/80`;
+            case 'excellent': return `${common} ring-cyan-500/70`;
+            case 'good': return `${common} ring-blue-500/60`;
+            case 'inaccuracy': return `${common} ring-yellow-500/70`;
+            case 'mistake': return `${common} ring-orange-600/80`;
+            case 'blunder': return `${common} ring-red-700/90`;
+            case 'book': return `${common} ring-purple-500/60`;
+            default: return '';
+        }
+    }
+};
 
 const Square: React.FC<SquareProps> = ({
   squareState,
@@ -40,6 +74,11 @@ const Square: React.FC<SquareProps> = ({
   isHintFromSquare,
   isHintToSquare,
   hintKey,
+  isAnalyzedMoveFrom,
+  isAnalyzedMoveTo,
+  moveClassification,
+  isBestAlternativeMoveFrom,
+  isBestAlternativeMoveTo,
 }) => {
   const bgColorClass = isLightSquare ? boardClasses.lightSquare : boardClasses.darkSquare;
   const selectedBgColorClass = boardClasses.selectedSquareBg;
@@ -55,9 +94,17 @@ const Square: React.FC<SquareProps> = ({
     currentRing = selectedRingClass;
   }
   
+  if (isAnalyzedMoveFrom || isAnalyzedMoveTo) {
+    currentRing = getAnalysisHighlightClass(moveClassification, theme);
+  }
+
   const kingCheckPulseClass = theme === 'dark' 
     ? 'animate-[pulse_1.5s_cubic-bezier(0.4,0,0.6,1)_infinite] bg-red-700/50 border-red-500/70' 
     : 'animate-[pulse_1.5s_cubic-bezier(0.4,0,0.6,1)_infinite] bg-red-400/50 border-red-300/70';
+  
+  const bestAlternativeMoveClass = theme === 'dark'
+    ? 'border-dashed border-2 border-teal-400/70'
+    : 'border-dashed border-2 border-teal-500/70';
 
   const squareClasses = [
     'w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16',
@@ -65,7 +112,8 @@ const Square: React.FC<SquareProps> = ({
     currentBg,
     currentRing,
     'transition-all duration-150',
-    isKingInCheck && !isSelected ? kingCheckPulseClass : ''
+    isKingInCheck && !isSelected ? kingCheckPulseClass : '',
+    (isBestAlternativeMoveFrom || isBestAlternativeMoveTo) ? bestAlternativeMoveClass : ''
   ].filter(Boolean).join(' ');
 
   const showLastMoveHighlight = isLastMoveFromSquare || isLastMoveToSquare;
@@ -78,14 +126,12 @@ const Square: React.FC<SquareProps> = ({
   const [row, col] = position;
   const algebraicNotation = `${String.fromCharCode(97 + col)}${8 - row}`;
 
-  // Conditions to show labels on the edges of the board for a clean look
-  const showRankLabel = col === 0; // Show rank on 'a' file
+  const showRankLabel = col === 0;
   const rankLabel = `${8 - row}`;
 
-  const showFileLabel = row === 7; // Show file on 1st rank
+  const showFileLabel = row === 7;
   const fileLabel = String.fromCharCode(97 + col);
 
-  // A subtle text color that has decent contrast on both light and dark squares for each theme.
   const notationColorClass = 'text-stone-700/50 dark:text-slate-300/50';
 
   return (

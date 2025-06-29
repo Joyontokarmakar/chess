@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { SavedGame, Theme } from '../types';
 
@@ -26,11 +27,13 @@ const SavedGamesList: React.FC<SavedGamesListProps> = ({
   const textColorClass = theme === 'dark' ? 'text-slate-300' : 'text-slate-700';
   const dateColorClass = theme === 'dark' ? 'text-slate-400' : 'text-slate-500';
   
-  const buttonBase = "font-semibold py-2 px-4 rounded-md text-xs sm:text-sm shadow-md hover:shadow-lg transition-all duration-150 transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-opacity-75";
-  const loadButtonClass = `${buttonBase} ${theme === 'dark' ? 'bg-sky-600/90 hover:bg-sky-500/95 text-white focus-visible:ring-sky-400' : 'bg-sky-500 hover:bg-sky-600 text-white focus-visible:ring-sky-300'}`;
-  const deleteButtonClass = `${buttonBase} ${theme === 'dark' ? 'bg-red-700/90 hover:bg-red-600/95 text-white focus-visible:ring-red-500' : 'bg-red-600 hover:bg-red-700 text-white focus-visible:ring-red-400'}`;
-  const clearAllButtonClass = `${buttonBase} w-full mt-3 sm:w-auto ${theme === 'dark' ? 'bg-rose-700/90 hover:bg-rose-600/95 text-white focus-visible:ring-rose-500' : 'bg-rose-600 hover:bg-rose-700 text-white focus-visible:ring-rose-400'}`;
-  const backButtonClass = `${buttonBase} w-full mt-3 sm:w-auto ${theme === 'dark' ? 'bg-slate-600/80 hover:bg-slate-500/90 text-slate-200 focus-visible:ring-slate-400' : 'bg-gray-300/90 hover:bg-gray-400/95 text-slate-700 focus-visible:ring-gray-500'}`;
+  const buttonBase = "font-semibold py-2 px-4 rounded-md text-xs sm:text-sm shadow-md hover:shadow-lg transition-all duration-150 transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-opacity-75 text-white border-transparent";
+  const loadButtonClass = `${buttonBase} ${theme === 'dark' ? 'bg-gradient-to-r from-sky-600/90 to-blue-700/90 hover:from-sky-500/95 hover:to-blue-600/95 focus-visible:ring-sky-400' : 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 focus-visible:ring-sky-400'}`;
+  const deleteButtonClass = `${buttonBase} ${theme === 'dark' ? 'bg-gradient-to-r from-red-700/90 to-rose-800/90 hover:from-red-600/95 hover:to-rose-700/95 focus-visible:ring-red-500' : 'bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-700 hover:to-rose-800 focus-visible:ring-red-500'}`;
+
+  const wideButtonBase = `font-semibold py-2.5 px-4 rounded-lg text-sm shadow-lg hover:shadow-xl transition-all duration-200 ease-in-out transform hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-opacity-75`;
+  const clearAllButtonClass = `${wideButtonBase} w-full mt-3 sm:w-auto ${theme === 'dark' ? 'text-white bg-gradient-to-r from-amber-600/80 to-red-700/80 hover:from-amber-500/90 hover:to-red-600/90 focus-visible:ring-amber-400' : 'text-white bg-gradient-to-r from-amber-500 to-red-600 hover:from-amber-600 hover:to-red-700 focus-visible:ring-amber-500'}`;
+  const backButtonClass = `${wideButtonBase} w-full mt-3 sm:w-auto ${theme === 'dark' ? 'text-slate-200 bg-slate-600/70 hover:bg-slate-500/80 border border-slate-500/50 focus-visible:ring-slate-400' : 'text-slate-700 bg-gray-300/80 hover:bg-gray-400/90 border border-gray-400/60 focus-visible:ring-gray-500'}`;
   const scrollbarStyles = theme === 'dark' ? 'scrollbar-thumb-slate-600 scrollbar-track-slate-700/50' : 'scrollbar-thumb-gray-400 scrollbar-track-gray-200/50';
 
   return (

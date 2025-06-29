@@ -1,5 +1,7 @@
+
+
 import React, { useState } from 'react';
-import { Theme, GameMode as AppGameMode, LayoutSettings, WelcomeArenaMenuItemId } from '../types'; // Renamed GameMode to avoid conflict
+import { Theme, GameMode as AppGameMode, LayoutSettings, WelcomeArenaMenuItemId, CompletedGame } from '../types'; // Renamed GameMode to avoid conflict
 import ThemeToggle from './ThemeToggle';
 import SavedGamesList from './SavedGamesList';
 import type { SavedGame } from '../types';
@@ -25,6 +27,8 @@ interface MenuModalProps {
   onOpenLayoutCustomization: () => void;
   onOpenChessGuide: () => void;
   onOpenChangelog: () => void; // Added for Changelog
+  onOpenGameHistory: () => void;
+  isHistoryAvailable: boolean;
 }
 
 type MenuView = 'main' | 'savedGames' | 'gameSettings';
@@ -48,7 +52,9 @@ const MenuModal: React.FC<MenuModalProps> = ({
   onLayoutSettingsChange,
   onOpenLayoutCustomization,
   onOpenChessGuide,
-  onOpenChangelog
+  onOpenChangelog,
+  onOpenGameHistory,
+  isHistoryAvailable,
 }) => {
   const [menuView, setMenuView] = useState<MenuView>('main');
 
@@ -57,75 +63,67 @@ const MenuModal: React.FC<MenuModalProps> = ({
   const menuContainerBg = theme === 'dark' ? 'bg-slate-800/85 backdrop-blur-2xl border-slate-700/60' : 'bg-white/85 backdrop-blur-2xl border-gray-300/60';
   const titleTextColor = theme === 'dark' ? 'text-slate-100' : 'text-slate-800';
   
-  const smallWideButtonBase = `w-full font-semibold py-2.5 sm:py-3 px-4 rounded-lg text-sm sm:text-base shadow-lg hover:shadow-xl transition-all duration-200 ease-in-out transform hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-opacity-75 backdrop-blur-md border flex items-center justify-center gap-x-2`;
+  const smallWideButtonBase = `w-full font-semibold py-2.5 sm:py-3 px-4 rounded-lg text-sm sm:text-base shadow-lg hover:shadow-xl transition-all duration-200 ease-in-out transform hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-opacity-75 backdrop-blur-md border-transparent text-white flex items-center justify-center gap-x-2`;
   const separatorClass = theme === 'dark' ? 'border-slate-700/80 my-3 sm:my-3.5' : 'border-gray-300/80 my-3 sm:my-3.5';
   const modeHeaderClass = `text-xs font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'} my-1.5 text-center`;
   const scrollbarStyles = theme === 'dark' ? 'scrollbar-thumb-slate-600 scrollbar-track-slate-700/50' : 'scrollbar-thumb-gray-400 scrollbar-track-gray-200/50';
   const settingsToggleContainerClass = `p-0 rounded-lg border-none ${theme === 'dark' ? 'bg-slate-700/60 border-slate-600/80' : 'bg-gray-200/80 border-gray-300/80'}`;
 
 
-  const getButtonThemeClasses = (action: 'save' | 'load' | 'reset' | 'themeContainer' | 'close' | 'mode' | 'hof' | 'customize_layout' | 'chess_guide' | 'game_settings' | 'sound_toggle_container' | 'back_to_main' | 'puzzle_mode' | 'changelog' | 'coach_mode', baseColor?: string) => {
+  const getButtonThemeClasses = (action: 'save' | 'load' | 'reset' | 'themeContainer' | 'close' | 'mode' | 'hof' | 'customize_layout' | 'chess_guide' | 'game_settings' | 'sound_toggle_container' | 'back_to_main' | 'puzzle_mode' | 'changelog' | 'coach_mode' | 'analyze_game', baseColor?: string) => {
     const commonButtonStyles = `${smallWideButtonBase}`;
     if (theme === 'dark') {
       switch(action) {
-        case 'save': 
-        case 'load': 
-            return `${commonButtonStyles} bg-green-600/70 hover:bg-green-500/80 border-green-500/50 text-white focus-visible:ring-green-400 disabled:bg-slate-600/50 disabled:border-slate-500/40 disabled:text-slate-400 disabled:hover:bg-slate-600/50 disabled:transform-none disabled:shadow-lg`;
-        case 'reset': return `${commonButtonStyles} bg-amber-600/70 hover:bg-amber-500/80 border-amber-500/50 text-white focus-visible:ring-amber-400`;
-        case 'customize_layout':
-            return `${commonButtonStyles} bg-purple-600/70 hover:bg-purple-500/80 border-purple-500/50 text-white focus-visible:ring-purple-400`;
-        case 'chess_guide':
-        case 'changelog': 
-            return `${commonButtonStyles} bg-indigo-600/70 hover:bg-indigo-500/80 border-indigo-500/50 text-white focus-visible:ring-indigo-400`;
-        case 'game_settings':
-            return `${commonButtonStyles} bg-cyan-600/70 hover:bg-cyan-500/80 border-cyan-500/50 text-white focus-visible:ring-cyan-400`;
-        case 'puzzle_mode':
-             return `${commonButtonStyles} bg-lime-600/70 hover:bg-lime-500/80 border-lime-500/50 text-white focus-visible:ring-lime-400`;
-        case 'coach_mode':
-             return `${commonButtonStyles} bg-indigo-600/70 hover:bg-indigo-500/80 border-indigo-500/50 text-white focus-visible:ring-indigo-400`; // Example color for Coach
-        case 'themeContainer': 
-        case 'sound_toggle_container':
-            return `p-2.5 rounded-lg border bg-slate-700/60 border-slate-600/80`;
+        // Calming Greens/Blues for Save/Load
+        case 'save': return `${commonButtonStyles} bg-gradient-to-r from-green-600/80 to-teal-700/80 hover:from-green-500/90 hover:to-teal-600/90 focus-visible:ring-green-400 disabled:bg-slate-700/60 disabled:from-slate-700/60 disabled:to-slate-700/60 disabled:text-slate-400 disabled:hover:from-slate-700/60 disabled:transform-none`;
+        case 'load': return `${commonButtonStyles} bg-gradient-to-r from-purple-600/80 to-violet-700/80 hover:from-purple-500/90 hover:to-violet-600/90 focus-visible:ring-purple-400`;
+        // Warning Ambers/Reds for Reset
+        case 'reset': return `${commonButtonStyles} bg-gradient-to-r from-amber-600/80 to-red-700/80 hover:from-amber-500/90 hover:to-red-600/90 focus-visible:ring-amber-400`;
+        // Creative Purples/Cyans for Settings
+        case 'customize_layout': return `${commonButtonStyles} bg-gradient-to-r from-purple-600/80 to-violet-700/80 hover:from-purple-500/90 hover:to-violet-600/90 focus-visible:ring-purple-400`;
+        case 'game_settings': return `${commonButtonStyles} bg-gradient-to-r from-cyan-600/80 to-sky-700/80 hover:from-cyan-500/90 hover:to-sky-600/90 focus-visible:ring-cyan-400`;
+        // Informational
+        case 'chess_guide': return `${commonButtonStyles} bg-gradient-to-r from-slate-500/80 to-sky-700/80 hover:from-slate-500/90 hover:to-sky-600/90 focus-visible:ring-slate-400`;
+        case 'changelog': return `${commonButtonStyles} bg-gradient-to-r from-cyan-500/80 to-teal-600/80 hover:from-cyan-400/90 hover:to-teal-500/90 focus-visible:ring-cyan-400`;
+        // Mode specific
+        case 'puzzle_mode': return `${commonButtonStyles} bg-gradient-to-r from-lime-600/80 to-green-700/80 hover:from-lime-500/90 hover:to-green-600/90 focus-visible:ring-lime-400`;
+        case 'coach_mode': return `${commonButtonStyles} bg-gradient-to-r from-indigo-500/80 to-purple-600/80 hover:from-indigo-500/90 hover:to-purple-500/90 focus-visible:ring-indigo-400`;
+        // Analysis
+        case 'analyze_game': return `${commonButtonStyles} bg-gradient-to-r from-indigo-500/80 via-purple-600/80 to-pink-600/80 hover:from-indigo-500/90 hover:via-purple-600/90 hover:to-pink-600/90 focus-visible:ring-purple-400 disabled:bg-slate-700/60 disabled:from-slate-700/60 disabled:to-slate-700/60 disabled:text-slate-400 disabled:hover:from-slate-700/60 disabled:transform-none`;
+        // Neutral/UI controls
+        case 'themeContainer': return `p-2.5 rounded-lg border bg-slate-700/60 border-slate-600/80`;
         case 'close': return `p-2 rounded-full transition-colors duration-150 focus:outline-none focus-visible:ring-2 text-slate-400 hover:text-slate-200 hover:bg-slate-700/70 focus-visible:ring-sky-400`;
-        case 'back_to_main':
-            return `${commonButtonStyles} bg-slate-600/70 hover:bg-slate-500/80 border-slate-500/50 text-slate-200 focus-visible:ring-slate-400`;
+        case 'back_to_main': return `${smallWideButtonBase} text-slate-200 bg-slate-600/70 hover:bg-slate-500/80 border-slate-500/50 focus-visible:ring-slate-400`;
+        // New Game modes
         case 'mode':
         case 'hof':
-            if (baseColor === 'friend') return `${commonButtonStyles} bg-teal-600/70 hover:bg-teal-500/80 border-teal-500/50 text-white focus-visible:ring-teal-400`;
-            if (baseColor === 'computer') return `${commonButtonStyles} bg-rose-600/70 hover:bg-rose-500/80 border-rose-500/50 text-white focus-visible:ring-rose-400`;
-            if (baseColor === 'online') return `${commonButtonStyles} bg-sky-600/70 hover:bg-sky-500/80 border-sky-500/50 text-white focus-visible:ring-sky-400`;
-            if (baseColor === 'hof') return `${commonButtonStyles} bg-amber-600/70 hover:bg-amber-500/80 border-amber-500/50 text-white focus-visible:ring-amber-400`;
-            return commonButtonStyles; 
+            if (baseColor === 'friend') return `${commonButtonStyles} bg-gradient-to-r from-teal-600/80 to-green-700/80 hover:from-teal-500/90 hover:to-green-600/90 focus-visible:ring-teal-400`;
+            if (baseColor === 'computer') return `${commonButtonStyles} bg-gradient-to-r from-rose-600/80 to-red-700/80 hover:from-rose-500/90 hover:to-red-600/90 focus-visible:ring-rose-400`;
+            if (baseColor === 'online') return `${commonButtonStyles} bg-gradient-to-r from-sky-600/80 to-indigo-700/80 hover:from-sky-500/90 hover:to-indigo-600/90 focus-visible:ring-sky-400`;
+            if (baseColor === 'hof') return `${commonButtonStyles} bg-gradient-to-r from-amber-500/80 to-orange-600/80 hover:from-amber-500/90 hover:to-orange-500/90 focus-visible:ring-amber-400`;
+            return commonButtonStyles;
       }
     } else { // Light theme
        switch(action) {
-        case 'save':
-        case 'load': 
-            return `${commonButtonStyles} bg-green-500/80 hover:bg-green-600/90 border-green-400/60 text-white focus-visible:ring-green-500 disabled:bg-gray-300/70 disabled:border-gray-400/50 disabled:text-gray-500 disabled:hover:bg-gray-300/70 disabled:transform-none disabled:shadow-lg`;
-        case 'reset': return `${commonButtonStyles} bg-amber-500/80 hover:bg-amber-600/90 border-amber-400/60 text-white focus-visible:ring-amber-500`;
-        case 'customize_layout':
-            return `${commonButtonStyles} bg-purple-500/80 hover:bg-purple-600/90 border-purple-400/60 text-white focus-visible:ring-purple-500`;
-        case 'chess_guide':
-        case 'changelog': 
-            return `${commonButtonStyles} bg-indigo-500/80 hover:bg-indigo-600/90 border-indigo-400/60 text-white focus-visible:ring-indigo-500`;
-        case 'game_settings':
-            return `${commonButtonStyles} bg-cyan-500/80 hover:bg-cyan-600/90 border-cyan-400/60 text-white focus-visible:ring-cyan-500`;
-        case 'puzzle_mode':
-            return `${commonButtonStyles} bg-lime-500/80 hover:bg-lime-600/90 border-lime-400/60 text-white focus-visible:ring-lime-500`;
-        case 'coach_mode':
-            return `${commonButtonStyles} bg-indigo-500/80 hover:bg-indigo-600/90 border-indigo-400/60 text-white focus-visible:ring-indigo-500`; // Example for Coach
-        case 'themeContainer': 
-        case 'sound_toggle_container':
-            return `p-2.5 rounded-lg border bg-gray-200/80 border-gray-300/80`;
+        case 'save': return `${commonButtonStyles} bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 focus-visible:ring-green-500 disabled:bg-gray-300 disabled:from-gray-300 disabled:to-gray-300 disabled:text-gray-500 disabled:hover:from-gray-300 disabled:transform-none`;
+        case 'load': return `${commonButtonStyles} bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 focus-visible:ring-purple-500`;
+        case 'reset': return `${commonButtonStyles} bg-gradient-to-r from-amber-500 to-red-600 hover:from-amber-600 hover:to-red-700 focus-visible:ring-amber-500`;
+        case 'customize_layout': return `${commonButtonStyles} bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 focus-visible:ring-purple-500`;
+        case 'game_settings': return `${commonButtonStyles} bg-gradient-to-r from-cyan-500 to-sky-600 hover:from-cyan-600 hover:to-sky-700 focus-visible:ring-cyan-500`;
+        case 'chess_guide': return `${commonButtonStyles} bg-gradient-to-r from-slate-400 to-sky-500 hover:from-slate-500 hover:to-sky-600 focus-visible:ring-slate-500`;
+        case 'changelog': return `${commonButtonStyles} bg-gradient-to-r from-cyan-400 to-teal-500 hover:from-cyan-500 hover:to-teal-600 focus-visible:ring-cyan-500`;
+        case 'puzzle_mode': return `${commonButtonStyles} bg-gradient-to-r from-lime-500 to-green-600 hover:from-lime-600 hover:to-green-700 focus-visible:ring-lime-500`;
+        case 'coach_mode': return `${commonButtonStyles} bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 focus-visible:ring-indigo-500`;
+        case 'analyze_game': return `${commonButtonStyles} bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 focus-visible:ring-purple-500 disabled:bg-gray-300 disabled:from-gray-300 disabled:to-gray-300 disabled:text-gray-500 disabled:hover:from-gray-300 disabled:transform-none`;
+        case 'themeContainer': return `p-2.5 rounded-lg border bg-gray-200/80 border-gray-300/80`;
         case 'close': return `p-2 rounded-full transition-colors duration-150 focus:outline-none focus-visible:ring-2 text-slate-500 hover:text-slate-800 hover:bg-gray-300/70 focus-visible:ring-sky-600`;
-        case 'back_to_main':
-            return `${commonButtonStyles} bg-gray-300/80 hover:bg-gray-400/90 border-gray-400/60 text-slate-700 focus-visible:ring-gray-500`;
+        case 'back_to_main': return `${smallWideButtonBase} text-slate-700 bg-gray-300/80 hover:bg-gray-400/90 border-gray-400/60 focus-visible:ring-gray-500`;
         case 'mode':
         case 'hof':
-            if (baseColor === 'friend') return `${commonButtonStyles} bg-teal-500/80 hover:bg-teal-600/90 border-teal-400/60 text-white focus-visible:ring-teal-500`;
-            if (baseColor === 'computer') return `${commonButtonStyles} bg-rose-500/80 hover:bg-rose-600/90 border-rose-400/60 text-white focus-visible:ring-rose-500`;
-            if (baseColor === 'online') return `${commonButtonStyles} bg-sky-500/80 hover:bg-sky-600/90 border-sky-400/60 text-white focus-visible:ring-sky-500`;
-            if (baseColor === 'hof') return `${commonButtonStyles} bg-amber-500/80 hover:bg-amber-600/90 border-amber-400/60 text-white focus-visible:ring-amber-500`;
+            if (baseColor === 'friend') return `${commonButtonStyles} bg-gradient-to-r from-teal-500 to-green-600 hover:from-teal-600 hover:to-green-700 focus-visible:ring-teal-500`;
+            if (baseColor === 'computer') return `${commonButtonStyles} bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 focus-visible:ring-rose-500`;
+            if (baseColor === 'online') return `${commonButtonStyles} bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 focus-visible:ring-sky-500`;
+            if (baseColor === 'hof') return `${commonButtonStyles} bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 focus-visible:ring-amber-500`;
             return commonButtonStyles; 
       }
     }
@@ -251,6 +249,17 @@ const MenuModal: React.FC<MenuModalProps> = ({
                 aria-label="Hall of Fame"
               >
                 <span className="mr-2 text-lg">🏆</span> Hall of Fame
+              </button>
+              
+              <hr className={separatorClass} />
+              <div className={modeHeaderClass}>Post-Game</div>
+              <button
+                  onClick={() => { onOpenGameHistory(); onClose(); }}
+                  disabled={!isHistoryAvailable}
+                  className={getButtonThemeClasses('analyze_game')}
+                  aria-label="Game History & Analysis"
+              >
+                  <span className="mr-2 text-lg">📊</span> Game History & Analysis
               </button>
               
               <hr className={separatorClass} />
@@ -471,7 +480,7 @@ const MenuModal: React.FC<MenuModalProps> = ({
 
                 <button
                     onClick={() => setMenuView('main')}
-                    className={getButtonThemeClasses('back_to_main', '')}
+                    className={getButtonThemeClasses('back_to_main')}
                     aria-label="Back to Main Menu"
                 >
                      <span className="mr-2 text-lg">↩️</span> Back to Main Menu

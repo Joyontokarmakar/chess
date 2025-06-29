@@ -1,4 +1,4 @@
-import { HallOfFameEntry, GameMode, OnlineGameState, Theme, SavedGame, LayoutSettings, GameOverReason } from '../types';
+import { HallOfFameEntry, GameMode, OnlineGameState, Theme, SavedGame, LayoutSettings, GameOverReason, CompletedGame } from '../types';
 
 const HALL_OF_FAME_KEY = 'chessHallOfFame';
 const MAX_HALL_OF_FAME_ENTRIES = 10;
@@ -8,6 +8,8 @@ const SAVED_GAMES_KEY = 'chessSavedGames';
 const MAX_SAVED_GAMES = 5;
 const LAYOUT_SETTINGS_KEY = 'chessLayoutSettings';
 export const FIRST_VISIT_KEY = 'chessGameFirstVisitDone';
+const COMPLETED_GAMES_KEY = 'chessCompletedGames';
+const MAX_COMPLETED_GAMES = 10;
 
 
 // --- Theme ---
@@ -224,5 +226,40 @@ export function setFirstVisitDone(): void {
     localStorage.setItem(FIRST_VISIT_KEY, 'true');
   } catch (error) {
     console.error("Error saving first visit status:", error);
+  }
+}
+
+// --- Completed Games History for Analysis ---
+export function getCompletedGames(): CompletedGame[] {
+  try {
+    const gamesJson = localStorage.getItem(COMPLETED_GAMES_KEY);
+    if (gamesJson) {
+      const games = JSON.parse(gamesJson) as CompletedGame[];
+      return games.sort((a, b) => new Date(b.gameStartDate).getTime() - new Date(a.gameStartDate).getTime());
+    }
+  } catch (error) {
+    console.error("Error retrieving completed games:", error);
+  }
+  return [];
+}
+
+export function saveCompletedGame(game: CompletedGame): void {
+  try {
+    let games = getCompletedGames();
+    // Prevent duplicates by checking ID (which is the gameStartTimeStamp)
+    games = games.filter(g => g.id !== game.id);
+    games.unshift(game); // Add new game to the beginning
+    games = games.slice(0, MAX_COMPLETED_GAMES); // Keep only the last 10
+    localStorage.setItem(COMPLETED_GAMES_KEY, JSON.stringify(games));
+  } catch (error) {
+    console.error("Error saving completed game:", error);
+  }
+}
+
+export function clearCompletedGames(): void {
+  try {
+    localStorage.removeItem(COMPLETED_GAMES_KEY);
+  } catch (error) {
+    console.error("Error clearing completed games:", error);
   }
 }

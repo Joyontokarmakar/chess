@@ -1,3 +1,11 @@
+
+export type Theme = 'light' | 'dark';
+
+export enum PlayerColor {
+  WHITE = 'White',
+  BLACK = 'Black',
+}
+
 export enum PieceType {
   PAWN = 'P',
   ROOK = 'R',
@@ -7,13 +15,8 @@ export enum PieceType {
   KING = 'K',
 }
 
-export enum PlayerColor {
-  WHITE = 'White',
-  BLACK = 'Black',
-}
-
 export interface Piece {
-  id: string; // Unique ID for React keys, e.g., 'wP1', 'bK'
+  id: string;
   type: PieceType;
   color: PlayerColor;
   hasMoved: boolean;
@@ -21,21 +24,30 @@ export interface Piece {
 
 export type SquareState = Piece | null;
 export type BoardState = SquareState[][];
-export type Position = [number, number]; // [row, col]
+export type Position = [number, number];
 
 export interface CastlingRights {
   [PlayerColor.WHITE]: { kingSide: boolean; queenSide: boolean };
   [PlayerColor.BLACK]: { kingSide: boolean; queenSide: boolean };
 }
 
-export type GameOverReason = 'checkmate' | 'stalemate' | 'timeout' | 'resignation';
+export type GameOverReason = 'checkmate' | 'stalemate' | 'resignation' | 'timeout';
 
 export interface GameStatus {
   message: string;
   isGameOver: boolean;
   winner?: PlayerColor;
   winnerName?: string;
-  reason?: GameOverReason;
+  reason?: GameOverReason | 'draw';
+}
+
+export type GameMode = 'friend' | 'computer' | 'online' | 'puzzle' | 'coach' | 'loaded_friend' | null;
+
+export enum AIDifficultyLevel {
+  EASY = 'Easy',
+  MEDIUM = 'Medium',
+  HARD = 'Hard',
+  GRANDMASTER = 'Grandmaster',
 }
 
 export interface MakeMoveResult {
@@ -46,23 +58,35 @@ export interface MakeMoveResult {
   capturedPiece: Piece | null;
 }
 
-export type GameMode = 'friend' | 'computer' | 'online' | 'loaded_friend' | 'puzzle' | 'coach' | null;
-
 export interface AIMove {
   from: Position;
   to: Position;
-  promotion?: PieceType; // e.g., 'Q', 'R', 'B', 'N'
+  promotion?: PieceType;
+  comment?: string;
 }
 
-export interface HallOfFameEntry {
-  id: string;
-  winnerName: string;
-  opponentName: string;
-  mode: GameMode;
-  gameStartDateTime: string; // e.g., "2023-10-25T14:30:00.000Z" (ISO string)
-  playDurationSeconds: number | null; // Duration in seconds
-  winReason?: GameOverReason | 'draw'; // How the game concluded
+export interface PuzzleSolutionMove extends AIMove {}
+
+export enum PuzzleDifficulty {
+    EASY = 'Easy',
+    MEDIUM = 'Medium',
+    HARD = 'Hard'
 }
+
+export interface Puzzle {
+    id: string;
+    title: string;
+    description: string;
+    difficulty: PuzzleDifficulty;
+    fen?: string;
+    initialBoard?: BoardState;
+    playerToMove: PlayerColor;
+    initialCastlingRights?: CastlingRights;
+    initialEnPassantTarget?: Position | null;
+    solution: PuzzleSolutionMove[];
+}
+
+export type TimeOptionKey = '3 min' | '5 min' | '10 min' | '30 min';
 
 export interface OnlineGameState {
   boardState: BoardState;
@@ -72,32 +96,23 @@ export interface OnlineGameState {
   capturedByWhite: Piece[];
   capturedByBlack: Piece[];
   gameStatus: GameStatus;
-  player1Name: string; // Host (White)
-  player2Name: string | null; // Joiner (Black), null if waiting
-  isGameReady: boolean; // True when player 2 has joined
-  lastMoveBy: PlayerColor | null; // Tracks who made the last move to avoid self-updates from storage events
+  player1Name: string;
+  player2Name: string | null;
+  isGameReady: boolean;
+  lastMoveBy: PlayerColor | null;
   kingInCheckPosition: Position | null;
   timeLimitPerPlayer: number | null;
   player1TimeLeft: number | null;
   player2TimeLeft: number | null;
   gameStartTimeStamp: number | null;
-  lastMove?: { from: Position; to: Position } | null;
-}
-
-export type Theme = 'light' | 'dark';
-
-export enum AIDifficultyLevel {
-  EASY = 'Easy',
-  MEDIUM = 'Medium',
-  HARD = 'Hard',
-  GRANDMASTER = 'Grandmaster',
+  lastMove?: { from: Position, to: Position };
 }
 
 export interface SavedGame {
   id: string;
   name: string;
   timestamp: number;
-  gameMode: 'friend' | 'computer' | 'loaded_friend' | 'coach';
+  gameMode: GameMode;
   boardState: BoardState;
   currentPlayer: PlayerColor;
   player1Name: string;
@@ -108,13 +123,23 @@ export interface SavedGame {
   capturedByBlack: Piece[];
   gameStatus: GameStatus;
   kingInCheckPosition: Position | null;
-  originalLocalPlayerColor?: PlayerColor | null;
-  aiDifficulty?: AIDifficultyLevel; // For saved AI games (and Coach mode)
+  originalLocalPlayerColor: PlayerColor | null;
+  aiDifficulty?: AIDifficultyLevel;
   timeLimitPerPlayer: number | null;
   player1TimeLeft: number | null;
   player2TimeLeft: number | null;
   gameStartTimeStamp: number | null;
-  lastMove?: { from: Position; to: Position } | null;
+  lastMove: { from: Position; to: Position } | null;
+}
+
+export interface HallOfFameEntry {
+  id: string;
+  winnerName: string;
+  opponentName: string;
+  mode: GameMode;
+  gameStartDateTime: string;
+  playDurationSeconds: number | null;
+  winReason?: GameOverReason | 'draw';
 }
 
 export type BoardStyleId = 'default-dark' | 'default-light' | 'classic-wood' | 'cool-blue' | 'forest-green';
@@ -130,43 +155,31 @@ export interface LayoutSettings {
   showHintButton: boolean;
 }
 
-export const TIME_OPTIONS = {
-  '10 minutes': 600,
-  '15 minutes': 900,
-  '20 minutes': 1200,
-  '25 minutes': 1500,
-};
-export type TimeOptionKey = keyof typeof TIME_OPTIONS;
-
-// --- Puzzle Mode Types ---
-export enum PuzzleDifficulty {
-    EASY = 'Easy',
-    MEDIUM = 'Medium',
-    HARD = 'Hard',
+export interface ChangelogVersion {
+  version: string;
+  title: string;
+  date?: string;
+  features: string[];
 }
 
-export interface PuzzleSolutionMove {
-    from: Position;
-    to: Position;
-    promotion?: PieceType;
-    comment?: string; // Optional comment for the move
+export type ToastType = 'info' | 'success' | 'warning' | 'error' | 'check';
+
+export interface ToastItem {
+  id: string;
+  message: string;
+  type: ToastType;
+  duration?: number;
 }
 
-export interface Puzzle {
-    id: string;
-    title: string;
-    description: string; // e.g., "White to play and mate in 1"
-    difficulty: PuzzleDifficulty;
-    fen?: string; // FEN string for initial position (alternative to manual setup)
-    initialBoard?: BoardState; // Use if FEN is not provided
-    playerToMove: PlayerColor;
-    initialCastlingRights?: CastlingRights;
-    initialEnPassantTarget?: Position | null;
-    solution: PuzzleSolutionMove[]; // Sequence of moves to solve the puzzle
-    // Opponent moves can be implicitly part of the solution sequence if the puzzle is multi-move interactive
+export type WelcomeArenaMenuItemId = 'friend' | 'computer' | 'online' | 'hof' | 'puzzle' | 'coach';
+
+export interface WelcomeArenaMenuItem {
+  id: WelcomeArenaMenuItemId;
+  label: string;
+  icon: string;
+  baseColor: string;
 }
 
-// --- Undo Move Type ---
 export interface MoveHistoryEntry {
   boardState: BoardState;
   currentPlayer: PlayerColor;
@@ -177,36 +190,50 @@ export interface MoveHistoryEntry {
   gameStatus: GameStatus;
   kingInCheckPosition: Position | null;
   lastMove: { from: Position; to: Position } | null;
-  // Timer states if needed for undo, can be complex
+  fenBeforeMove: string;
   player1TimeLeft: number | null;
   player2TimeLeft: number | null;
-  // gameStartTimeStamp: number | null; // This probably shouldn't change on undo
 }
 
-// --- Changelog Type ---
-export interface ChangelogVersion {
-  version: string;
-  title?: string;
-  date?: string; // Optional: e.g., "2024-07-28"
-  features: string[]; // Each string can be a main point or a sub-point starting with "  • "
+export type MoveClassification = 'blunder' | 'mistake' | 'inaccuracy' | 'good' | 'excellent' | 'brilliant' | 'book';
+
+export interface AnalyzedMove {
+    moveNumber: number;
+    color: 'White' | 'Black';
+    moveNotation: string;
+    san: string; // Standard Algebraic Notation, e.g., "e4", "Nf3"
+    classification: MoveClassification;
+    explanation: string;
+    bestAlternative?: {
+        moveNotation: string;
+        san: string; // e.g., "Nf3"
+        explanation?: string;
+        from: Position;
+        to: Position;
+        promotion?: PieceType;
+    };
+    from: Position;
+    to: Position;
+    promotion?: PieceType;
 }
 
-// --- Toast Notification Type ---
-export type ToastType = 'info' | 'success' | 'warning' | 'error' | 'check';
+export interface GameAnalysis {
+    summary: string;
+    keyMoments?: AnalyzedMove[];
+    fullAnalysis: AnalyzedMove[];
+}
 
-export interface ToastItem {
+export interface CompletedGame {
   id: string;
-  message: string;
-  type: ToastType;
-  duration?: number; // Optional duration in ms
+  player1Name: string;
+  player2Name: string;
+  gameMode: GameMode;
+  gameStartDate: string;
+  durationSeconds: number | null;
+  result: {
+    winner?: PlayerColor;
+    winnerName?: string;
+    reason?: GameOverReason | 'draw';
+  };
+  moveHistory: MoveHistoryEntry[];
 }
-
-// --- Welcome Arena Menu Item Type ---
-export type WelcomeArenaMenuItemId = GameMode | 'hof' | 'puzzle';
-
-export interface WelcomeArenaMenuItem {
-  id: WelcomeArenaMenuItemId;
-  label: string;
-  icon: string | React.ReactNode; 
-  baseColor: string; // key for theme classes
-};

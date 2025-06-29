@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Theme, TIME_OPTIONS, TimeOptionKey } from '../types';
+import { Theme, TimeOptionKey } from '../types';
+import { TIME_OPTIONS } from '../constants';
 
 interface TimeModeSelectionModalProps {
   isOpen: boolean;
