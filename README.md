@@ -1,90 +1,123 @@
 # ♟️ Custom Chess Game
 
-A modern, customizable, and feature-rich chess game playable in the browser. Built with user experience in mind, this project blends traditional chess gameplay with modern UI/UX enhancements, player customization, and intelligent features like AI difficulty levels and tactical puzzles.
+A modern, feature-rich, and fully customizable **chess game** built with React, TypeScript, and Tailwind CSS. Play chess **locally with a friend**, **against a smart AI**, or enjoy a **tactics training mode** — all from your browser. Designed for both beginners and experienced players, this game blends classic chess rules with a sleek, intuitive interface.
 
 ## 🚀 Live Demo
 
-> [👉 Play Now](#)  
-(*Add your live link here once deployed*)
+👉 [Play the Game](#)  
+(*Replace this with your actual deployed link*)
 
 ---
 
-## 📌 Features
+## 🧠 Game Modes
 
-### 🧠 Game Modes
 - **Player vs AI** – Choose difficulty: *Easy*, *Medium*, *Hard*, or *Grandmaster*
-- **Player vs Player (Friend)** – Play locally with another person
-- **Puzzle Mode / Tactics Trainer** – Solve curated tactical puzzles
-
-### ⚙️ Gameplay Features
-- Timer Mode (optional)
-- Undo Move (casual modes)
-- AI Move Hints
-- Confetti celebration on game over
-- Game sounds (move, capture, win)
-- Rename players during the game
-
-### 🎨 Customization
-- Light / Dark themes
-- Multiple board and piece styles
-- Show/Hide UI elements:
-  - Resign Button
-  - Undo Button
-  - Hint Button
-  - Toast notifications
-
-### 📱 Responsive Design
-- Mobile-optimized layout
-- Fully responsive Hall of Fame and menus
-
-### 🧩 Learn & Improve
-- In-game **Chess Guide** with rules and strategies
-- Visual indication of last move
-- Smart toasts for check, checkmate, and turn changes
+- **Player vs Player** – Play with a friend locally on the same device
+- **Puzzle Mode / Tactics Trainer** – Solve chess puzzles to sharpen your skills
+- **Simulated Online Mode** – Share a unique Game ID to play on the same device (not internet multiplayer)
 
 ---
 
-## 🆕 What's New
+## 🕹️ Core Gameplay Features
 
-### Version 4.2 – *Modernization & UX Focus* (2024-08-02)
-- ✅ New Welcome Modal (one-time screen)
-- ✅ Resign Button redesigned & relocated into player panels
-- ✅ Undo & Hint buttons repositioned beside the board
-- ✅ UI toggles to show/hide Undo and Hint
-- ✅ Improved mobile responsiveness for Hall of Fame
+- ♟️ **Standard Rules**: Pawn Promotion, Castling, En Passant, Check, Checkmate, and Stalemate detection
+- ✅ **Legal Move Validation**
+- 🧠 **AI Engine**:
+  - Gemini-powered AI (API key required)
+  - Basic offline fallback AI
+- ⏳ **Timer Mode**
+- 🔁 **Undo Moves** (optional)
+- 💡 **AI Move Hints** (optional)
+- 🎉 **Confetti celebration** on checkmate
+- 🔊 **Game Sounds**: Move, capture, win
+- 👑 **Captured Pieces Display**
+- 🔔 **Smart Toast Notifications**: “Check”, “Your Turn”, “Checkmate”, etc.
+- 🧭 **In-Game Chess Guide** for beginners and rule refreshers
 
-### Version 4.1 – *UI Enhancements & Control* (2024-08-01)
-- ✅ Resign confirmation modal added
-- ✅ Game Over overlay with winner/draw + confetti
-- ✅ Toaster notifications for in-game updates
-- ✅ Rename players mid-game
-- ✅ Show/hide toggles for resign and toast messages
+---
 
-### Version 4.0 – *Major Expansion*
-- ✅ Timer mode for all matches
-- ✅ AI Difficulty Levels
-- ✅ New piece designs and "sober" colors
-- ✅ Puzzle Mode
-- ✅ Sound effects
-- ✅ Game settings section
+## 🎨 Personalization & Themes
 
-### Version 3 – *UI & Gameplay Refinements*
-- UI updates for the Game Board and Main Menu
-- Timer Mode added for all game types
-- Visual indication for the last move made
-- Chess Guide for rules and piece movements
+- 🌓 **Light / Dark Modes**
+- 🎨 **Custom Board Styles**: Classic Wood, Cool Blue, Forest Green, etc.
+- ♔ **Multiple Piece Sets**: Default, Staunton, Merida
+- 🖊️ Rename players mid-game
+- 🧰 UI Toggle Options:
+  - Show/Hide Resign, Undo, Hint buttons
+  - Enable/Disable toast messages
 
-### Version 2 – *Customization & Game Management*
-- Light/Dark mode themes
-- Custom board and piece appearances
-- Local multiplayer ("Play Online" simulation)
-- Save/Load games
-- Hall of Fame UI enhancements
+---
 
-### Version 1 – *Initial Release*
-- Basic chess logic with standard rules
-- Player vs AI & Player vs Player modes
-- Victory tracking via Hall of Fame
+## 💻 Progressive Web App (PWA)
+
+- 📲 **Installable App**: Add the chess game to your home screen or desktop for faster access
+- 🌐 **Offline Play Support**: Fully functional without an internet connection (non-AI modes)
+- 🖥️ **Desktop Sidebar Layout**: Quick access to game modes, settings, and navigation
+
+---
+
+## 🧩 Learn & Improve
+
+- 📖 **Chess Guide**: Piece movement, rules, and strategies built right into the app
+- 👀 Visual indicators for:
+  - Last move made
+  - Pieces under check
+  - Available legal moves
+- 📊 **Game History & Analysis**: View and analyze your last 10 games move-by-move
+
+---
+
+## 💾 Game Management
+
+- 💾 **Save/Load Games** using `localStorage`
+- 🏆 **Hall of Fame**:
+  - Tracks winners and match info for AI and local games
+  - Clear history anytime
+- 🔁 **Start New Game / Reset Options**
+- 📋 **Game Menu** with modals and navigational UI
+- 📄 **Informational Pages**:
+  - About the Developer
+  - Terms & Conditions
+  - Privacy Policy
+
+---
+
+## 🔄 Drag & Drop Movement
+
+You can now move pieces by **clicking or dragging** — your choice! Intuitive controls make it easy for all ages.
+
+---
+
+## 🆕 Version Highlights
+
+### 🆕 Version 5.0 – *PWA & UI/UX Enhancements* (2024-08-10)
+- ✅ **Progressive Web App (PWA)**: Install on mobile/desktop for native-like usage
+- ✅ **Offline Mode** for non-AI games
+- ✅ **Desktop Sidebar Layout** for better navigation
+- ✅ **Multiple Piece Sets**: Choose between Default, Staunton, and Merida
+- ✅ **Drag-and-Drop Support** for moving pieces
+- 🔄 Smoother transitions, improved responsiveness
+- 🐞 Fixed AI setup and critical UI state error
+
+### Version 4.3 – *Architectural Fixes & UI Enhancements*
+- 🔧 Fixed major logic bug in launching game modes
+- 📊 Added Multi-Game History + detailed move analysis
+- 📄 Added “About,” “Terms,” and “Privacy Policy” pages
+- 🖼️ Visual polish: Gradient buttons, icon improvements
+- 🎮 Improved Game Over experience with rematch and return options
+- 🐞 Puzzle mode bug fixed
+
+### Version 4.2 – *Modern UX Upgrade*
+- Welcome screen for new players
+- Resign, Undo, Hint buttons improved and repositioned
+- Mobile responsiveness upgraded
+
+---
+
+## 📱 Responsive Design
+
+- Seamless experience across **desktops**, **tablets**, and **mobile phones**
+- Adaptive menus, layouts, and modals for every screen size
 
 ---
 
@@ -93,58 +126,8 @@ A modern, customizable, and feature-rich chess game playable in the browser. Bui
 ```bash
 📁 /public
 📁 /src
- ├── assets/       # Images and icons
- ├── components/   # React components (Board, Menu, Modals, etc.)
- ├── data/         # Puzzle data, Chess guide
- ├── utils/        # Game logic and helpers
- └── App.jsx       # Main app entry
-```
-
----
-
-## 🔧 Setup Instructions
-
-### 1. Clone the repository
-```bash
-git clone https://github.com/yourusername/custom-chess-game.git
-cd custom-chess-game
-```
-
-### 2. Install dependencies
-```bash
-npm install
-```
-
-### 3. Run locally
-```bash
-npm start
-```
-
----
-
-## 📈 Roadmap (Coming Soon)
-- ✅ Online Multiplayer (cross-device)
-- ✅ Local Puzzle Editor
-- ⏳ PGN Import/Export support
-- ⏳ Leaderboard with user accounts
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome!  
-Feel free to fork this repository, make enhancements, and open a pull request.
-
----
-
-## 📜 License
-
-This project is licensed under the **MIT License**.
-
----
-
-## 🙌 Acknowledgements
-
-- Built with React
-- Chess logic powered by custom JavaScript
-- UI animations and toasts inspired by modern design practices
+ ├── assets/       # Icons, graphics
+ ├── components/   # Reusable React components
+ ├── data/         # Chess puzzles, guide content
+ ├── utils/        # Game logic, helpers
+ └── App.tsx       # Main app entry point
