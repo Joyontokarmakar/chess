@@ -138,6 +138,19 @@ const Square: React.FC<SquareProps> = ({
     <div
       className={squareClasses}
       onClick={() => onClick(position)}
+      onDragOver={(e) => {
+        // Allow drop if this is a possible move square
+        if (isPossibleMove) {
+          e.preventDefault();
+        }
+      }}
+      onDrop={(e) => {
+        // Handle the drop if it's a valid move destination
+        if (isPossibleMove) {
+          e.preventDefault();
+          onClick(position);
+        }
+      }}
       role="button"
       tabIndex={0}
       aria-label={`Square ${algebraicNotation}${squareState ? `, ${squareState.color} ${squareState.type}` : ''}${isSelected ? ', selected' : ''}${isPossibleMove ? ', possible move' : ''}${showLastMoveHighlight ? ', part of last move' : ''}${showHintHighlight ? ', part of hint' : ''}`}
@@ -154,11 +167,25 @@ const Square: React.FC<SquareProps> = ({
       )}
 
       {squareState && (
-        <PieceDisplay 
-          piece={squareState} 
-          size="80%"
-          color={getPieceIconColor(squareState.color, theme, layoutSettings)}
-        />
+        <div
+          draggable={true}
+          onDragStart={(e) => {
+            onClick(position); // Select the piece when dragging starts
+            e.dataTransfer.effectAllowed = 'move';
+            document.body.classList.add('dragging');
+          }}
+          onDragEnd={() => {
+            document.body.classList.remove('dragging');
+          }}
+          className="w-full h-full flex items-center justify-center cursor-grab"
+        >
+          <PieceDisplay 
+            piece={squareState} 
+            size="80%"
+            color={getPieceIconColor(squareState.color, theme, layoutSettings)}
+            pieceSetId={layoutSettings.pieceSetId}
+          />
+        </div>
       )}
       {isPossibleMove && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">

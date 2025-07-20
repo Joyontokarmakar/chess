@@ -1,16 +1,17 @@
 import React from 'react';
-import { Piece } from '../types';
-import { PIECE_ICON_COMPONENTS } from '../constants';
+import { Piece, PieceSetId } from '../types';
+import { PIECE_SETS } from '../constants';
 
 interface PieceDisplayProps {
   piece: Piece;
   size: string | number; // e.g., "24px", 24, "80%"
   color: string; // Hex color string, e.g., "#FFFFFF"
   className?: string; // For additional wrapper styling if needed
+  pieceSetId: PieceSetId;
 }
 
-const PieceDisplay: React.FC<PieceDisplayProps> = ({ piece, size, color, className }) => {
-  const IconComponent = PIECE_ICON_COMPONENTS[piece.type];
+const PieceDisplay: React.FC<PieceDisplayProps> = ({ piece, size, color, className, pieceSetId }) => {
+  const IconComponent = PIECE_SETS[pieceSetId]?.[piece.type] || PIECE_SETS['default'][piece.type];
 
   if (!IconComponent) {
     // Fallback for an unknown piece type, though this shouldn't happen with valid PieceType

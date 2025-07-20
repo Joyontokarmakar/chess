@@ -1,10 +1,10 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { LayoutSettings, BoardStyleId, Theme } from '../types';
 import { getLayoutSettings as getLayoutSettingsFromStorage, setLayoutSettings as setLayoutSettingsInStorage } from '../utils/localStorageUtils';
 
 const initialDefaultLayoutSettings: LayoutSettings = {
   boardStyleId: 'default-dark' as BoardStyleId,
+  pieceSetId: 'default',
   whitePieceColor: undefined,
   blackPieceColor: undefined,
   isSoundEnabled: true,

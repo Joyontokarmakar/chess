@@ -147,6 +147,7 @@ export const PlayerDisplayPanel: React.FC<PlayerDisplayPanelProps> = ({
               size={avatarIconSize}
               color={avatarIconColor}
               className="mb-0.5 sm:mb-1"
+              pieceSetId={layoutSettings.pieceSetId}
           />
           <div className="flex items-center space-x-1">
               <p className={`text-xs sm:text-sm font-semibold ${nameTextColor} text-center break-words max-w-[calc(100%-1rem)]`}>
@@ -191,6 +192,7 @@ export const PlayerDisplayPanel: React.FC<PlayerDisplayPanelProps> = ({
                       piece={piece} 
                       size={capturedPieceIconSize}
                       color={getPieceIconColor(piece.color, theme, layoutSettings)}
+                      pieceSetId={layoutSettings.pieceSetId}
                     />
                   </div>
                 ))}

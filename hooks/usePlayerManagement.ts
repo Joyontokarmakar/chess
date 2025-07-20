@@ -1,6 +1,6 @@
 
 import { useState, useCallback } from 'react';
-import { PlayerColor, AIDifficultyLevel, ToastType } from '../types';
+import { PlayerColor, AIDifficultyLevel, ToastType, GameMode } from '../types';
 import { AI_PLAYER_NAME, COACH_AI_PLAYER_NAME } from '../constants';
 
 interface PlayerManagementProps {
@@ -15,13 +15,10 @@ export const usePlayerManagement = ({ addToast, setPlayerToRename, setIsRenameMo
   const [aiDifficulty, setAiDifficultyState] = useState<AIDifficultyLevel>(AIDifficultyLevel.MEDIUM);
 
   const setPlayer1Name = useCallback((name: string) => setPlayer1NameState(name || "Player 1"), []);
-  const setPlayer2Name = useCallback((name: string, gameMode?: string) => {
-    if (gameMode === 'computer') setPlayer2NameState(AI_PLAYER_NAME);
-    else if (gameMode === 'coach') setPlayer2NameState(COACH_AI_PLAYER_NAME);
-    else setPlayer2NameState(name || "Player 2");
+  const setPlayer2Name = useCallback((name: string) => {
+    setPlayer2NameState(name || "Player 2");
   }, []);
-  const setAiDifficulty = useCallback((difficulty: AIDifficultyLevel) => setAiDifficultyState(difficulty), []);
-
+  
   const handleRequestRename = useCallback((playerColor: PlayerColor) => {
     setPlayerToRename(playerColor);
     setIsRenameModalOpen(true);
@@ -66,7 +63,7 @@ export const usePlayerManagement = ({ addToast, setPlayerToRename, setIsRenameMo
   return {
     player1Name, setPlayer1Name,
     player2Name, setPlayer2Name,
-    aiDifficulty, setAiDifficulty,
+    aiDifficulty, setAiDifficulty: setAiDifficultyState,
     handleRequestRename,
     executePlayerRename,
     cancelPlayerRename,

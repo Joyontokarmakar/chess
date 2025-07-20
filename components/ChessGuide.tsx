@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Theme, PlayerColor, PieceType, Piece, LayoutSettings } from '../types';
 import PieceDisplay from './PieceDisplay';
@@ -55,6 +54,7 @@ const GuidePiece: React.FC<{ type: PieceType; color: PlayerColor; theme: Theme; 
       size="1em" 
       color={getPieceIconColor(color, theme, layoutSettings)}
       className={`inline-block align-middle mx-px ${className || ''}`}
+      pieceSetId={layoutSettings.pieceSetId}
     />
   );
 };

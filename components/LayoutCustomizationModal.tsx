@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
-import { Theme, LayoutSettings, BoardStyleId, Piece, PieceType, PlayerColor } from '../types';
-import { BOARD_STYLE_CONFIG } from '../constants';
+import { Theme, LayoutSettings, BoardStyleId, Piece, PieceType, PlayerColor, PieceSetId } from '../types';
+import { BOARD_STYLE_CONFIG, PIECE_SETS } from '../constants';
 import PieceDisplay from './PieceDisplay'; 
 import { getPieceIconColor } from '../utils/styleUtils';
 
@@ -26,9 +25,17 @@ function formatOptionLabel(id: string): string {
 const CURATED_BOARD_STYLES: { id: BoardStyleId; label: string }[] = [
   { id: 'default-dark', label: 'Default Dark' },
   { id: 'default-light', label: 'Default Light' },
-  { id: 'classic-wood', label: 'Classic Wood' },
+  { id: 'classic-wood', label: 'Wooden Texture' },
   { id: 'cool-blue', label: 'Cool Blue' },
   { id: 'forest-green', label: 'Forest Green' },
+  { id: 'minimal-dark', label: 'Minimalist Dark' },
+  { id: 'minimal-light', label: 'Minimalist Light' },
+];
+
+const PIECE_SET_OPTIONS: { id: PieceSetId; label: string }[] = [
+    { id: 'default', label: 'Default' },
+    { id: 'staunton', label: 'Staunton' },
+    { id: 'merida', label: 'Merida' },
 ];
 
 interface ColorOption {
@@ -73,12 +80,14 @@ const LayoutCustomizationModal: React.FC<LayoutCustomizationModalProps> = ({
   theme,
 }) => {
   const [selectedBoardStyle, setSelectedBoardStyle] = useState<BoardStyleId>(currentSettings.boardStyleId);
+  const [selectedPieceSet, setSelectedPieceSet] = useState<PieceSetId>(currentSettings.pieceSetId);
   const [selectedWhitePieceColor, setSelectedWhitePieceColor] = useState<string | undefined>(currentSettings.whitePieceColor);
   const [selectedBlackPieceColor, setSelectedBlackPieceColor] = useState<string | undefined>(currentSettings.blackPieceColor);
 
   useEffect(() => {
     if (isOpen) {
       setSelectedBoardStyle(currentSettings.boardStyleId);
+      setSelectedPieceSet(currentSettings.pieceSetId);
       setSelectedWhitePieceColor(currentSettings.whitePieceColor);
       setSelectedBlackPieceColor(currentSettings.blackPieceColor);
     }
@@ -92,6 +101,7 @@ const LayoutCustomizationModal: React.FC<LayoutCustomizationModalProps> = ({
     onApplySettings({
       ...currentSettings, // Preserve existing settings like isSoundEnabled, showResignButton, showGameToasts
       boardStyleId: selectedBoardStyle,
+      pieceSetId: selectedPieceSet,
       whitePieceColor: selectedWhitePieceColor,
       blackPieceColor: selectedBlackPieceColor,
     });
@@ -163,10 +173,38 @@ const LayoutCustomizationModal: React.FC<LayoutCustomizationModalProps> = ({
                             <div className={`w-5 h-5 rounded-sm border ${previewSwatchBorder} ${lightSquareBg}`}></div>
                             <div className={`w-5 h-5 rounded-sm border ${previewSwatchBorder} ${darkSquareBg}`}></div>
                         </div>
-                        <span className={`${labelColorClass} text-sm`}>{formatOptionLabel(style.id)}</span>
+                        <span className={`${labelColorClass} text-sm`}>{style.label}</span>
                     </label>
                 );
               })}
+            </div>
+          </fieldset>
+
+          <hr className={hrClass} />
+
+          {/* Piece Set Selection */}
+          <fieldset>
+            <legend className={`text-md sm:text-lg font-semibold mb-2.5 ${sectionTitleColorClass}`}>Piece Set</legend>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2.5">
+              {PIECE_SET_OPTIONS.map(set => (
+                <label key={set.id} className={`flex items-center space-x-2.5 p-2 rounded-md cursor-pointer transition-colors ${theme === 'dark' ? 'hover:bg-slate-600/50' : 'hover:bg-gray-200/60'}`}>
+                  <input
+                    type="radio"
+                    name="pieceSet"
+                    value={set.id}
+                    checked={selectedPieceSet === set.id}
+                    onChange={() => setSelectedPieceSet(set.id)}
+                    className={radioClasses}
+                  />
+                  <PieceDisplay
+                    piece={kingPieceWhite}
+                    size="24px"
+                    color={getPieceIconColor(PlayerColor.WHITE, theme, { ...currentSettings, pieceSetId: set.id })}
+                    pieceSetId={set.id}
+                  />
+                  <span className={`${labelColorClass} text-sm`}>{set.label}</span>
+                </label>
+              ))}
             </div>
           </fieldset>
 
@@ -179,7 +217,8 @@ const LayoutCustomizationModal: React.FC<LayoutCustomizationModalProps> = ({
                 <PieceDisplay 
                     piece={kingPieceWhite} 
                     size="24px" 
-                    color={getPieceIconColor(PlayerColor.WHITE, theme, { ...currentSettings, boardStyleId: selectedBoardStyle, whitePieceColor: selectedWhitePieceColor })} 
+                    color={getPieceIconColor(PlayerColor.WHITE, theme, { ...currentSettings, boardStyleId: selectedBoardStyle, pieceSetId: selectedPieceSet, whitePieceColor: selectedWhitePieceColor })} 
+                    pieceSetId={selectedPieceSet}
                 />
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
@@ -221,7 +260,8 @@ const LayoutCustomizationModal: React.FC<LayoutCustomizationModalProps> = ({
                  <PieceDisplay 
                     piece={kingPieceBlack} 
                     size="24px" 
-                    color={getPieceIconColor(PlayerColor.BLACK, theme, { ...currentSettings, boardStyleId: selectedBoardStyle, blackPieceColor: selectedBlackPieceColor })}
+                    color={getPieceIconColor(PlayerColor.BLACK, theme, { ...currentSettings, boardStyleId: selectedBoardStyle, pieceSetId: selectedPieceSet, blackPieceColor: selectedBlackPieceColor })}
+                    pieceSetId={selectedPieceSet}
                 />
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">

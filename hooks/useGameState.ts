@@ -1,13 +1,12 @@
-
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   BoardState, PlayerColor, Position, PieceType, CastlingRights, GameStatus, Piece,
-  GameOverReason, GameMode, OnlineGameState, ToastType, Puzzle
+  GameOverReason, GameMode, OnlineGameState, ToastType, Puzzle, MoveHistoryEntry, AIMove
 } from '../types';
 import { createInitialBoard, INITIAL_CASTLING_RIGHTS, SOUND_CAPTURE, SOUND_MOVE, SOUND_WIN, PUZZLES, parseFEN } from '../constants';
 import {
   getPossibleMoves, makeMove as performMakeMoveLogic, isKingInCheck, isCheckmate, isStalemate,
-  findKingPosition, createDeepBoardCopy
+  findKingPosition, createDeepBoardCopy, boardToFEN
 } from '../utils/chessLogic';
 import { playSound } from '../utils/soundUtils';
 import { saveHallOfFameEntry } from '../utils/localStorageUtils'; 
@@ -24,14 +23,14 @@ interface UseGameStateProps {
   setIsResignModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
   playerAttemptingResign: PlayerColor | null;
   gameMode: GameMode | null; 
-  gameStartTimeStamp: number | null; 
   setPlayer1Name: (name: string) => void;
-  setPlayer2Name: (name: string, gameMode?: GameMode) => void;
-  // Online play dependencies
+  setPlayer2Name: (name: string) => void;
   onlineGameIdForStorage: string | null;
   isOnlineGameReadyForStorage: boolean;
   updateOnlineGameState: (gameId: string, updatedState: Partial<OnlineGameState>) => void;
   lastMoveByRef: React.MutableRefObject<PlayerColor | null>;
+  isResignModalOpen: boolean;
+  localPlayerColorForStorage: PlayerColor | null;
 }
 
 const pieceTypeToName = (type: PieceType): string => {
@@ -47,7 +46,7 @@ const pieceTypeToName = (type: PieceType): string => {
 };
 
 
-export const useGameState = (props: any) => {
+export const useGameState = (props: UseGameStateProps) => {
   const [boardState, setBoardState] = useState<BoardState>(createInitialBoard());
   const [currentPlayer, setCurrentPlayer] = useState<PlayerColor>(PlayerColor.WHITE);
   const [selectedPiecePosition, setSelectedPiecePosition] = useState<Position | null>(null);
@@ -61,16 +60,62 @@ export const useGameState = (props: any) => {
   const [capturedByWhite, setCapturedByWhite] = useState<Piece[]>([]);
   const [capturedByBlack, setCapturedByBlack] = useState<Piece[]>([]);
   const [hasWinSoundPlayedThisGame, setHasWinSoundPlayedThisGame] = useState<boolean>(false);
+  const [moveHistory, setMoveHistory] = useState<MoveHistoryEntry[]>([]);
 
   // --- Puzzle Mode State ---
   const [currentPuzzleIndex, setCurrentPuzzleIndex] = useState<number>(0);
   const [currentPuzzle, setCurrentPuzzleState] = useState<Puzzle | null>(null);
   const [puzzleSolutionStep, setPuzzleSolutionStep] = useState<number>(0);
+  
+  // --- Timer State (from useGameTimer) ---
+  const [timeLimitPerPlayer, setTimeLimitPerPlayer] = useState<number | null>(null);
+  const [player1TimeLeft, setPlayer1TimeLeft] = useState<number | null>(null);
+  const [player2TimeLeft, setPlayer2TimeLeft] = useState<number | null>(null);
+  const [gameStartTimeStamp, setGameStartTimeStamp] = useState<number | null>(null);
+  const timerIntervalRef = useRef<number | null>(null);
 
   const setGameStatus = useCallback((status: GameStatus) => {
     setGameStatusState(status);
     props.addToast(status.message, props.determineToastTypeForGameStatus(status));
   }, [props.addToast, props.determineToastTypeForGameStatus]);
+  
+  const createHistoryEntry = useCallback((
+    boardState: BoardState, 
+    currentPlayer: PlayerColor, 
+    castlingRights: CastlingRights, 
+    enPassantTarget: Position | null,
+    capturedByWhite: Piece[], 
+    capturedByBlack: Piece[], 
+    gameStatus: GameStatus, 
+    kingInCheckPosition: Position | null, 
+    lastMove: { from: Position; to: Position } | null,
+    player1TimeLeft: number | null, 
+    player2TimeLeft: number | null,
+    moveCount: number,
+  ): MoveHistoryEntry => {
+    const fullMoveNumber = Math.floor(moveCount / 2) + 1;
+    // Note: Halfmove clock is simplified to 0 for this implementation.
+    const fen = boardToFEN(boardState, currentPlayer, castlingRights, enPassantTarget, 0, fullMoveNumber);
+
+    return {
+      boardState: createDeepBoardCopy(boardState),
+      currentPlayer,
+      castlingRights: JSON.parse(JSON.stringify(castlingRights)),
+      enPassantTarget,
+      capturedByWhite: [...capturedByWhite],
+      capturedByBlack: [...capturedByBlack],
+      gameStatus: { ...gameStatus },
+      kingInCheckPosition,
+      lastMove: lastMove ? { ...lastMove } : null,
+      fenBeforeMove: fen,
+      player1TimeLeft,
+      player2TimeLeft,
+    };
+  }, []);
+
+  const addMoveToHistory = useCallback((entry: MoveHistoryEntry) => {
+    setMoveHistory(prev => [...prev, entry]);
+  }, []);
 
   const updateGameStatus = useCallback(async (
     board: BoardState, actingPlayer: PlayerColor, currentCR: CastlingRights,
@@ -117,12 +162,12 @@ export const useGameState = (props: any) => {
     }
     
     if (gameStatusResult.isGameOver && props.gameMode && props.gameMode !== 'puzzle') {
-      const duration = props.gameStartTimeStamp ? (Date.now() - props.gameStartTimeStamp) / 1000 : null;
+      const duration = gameStartTimeStamp ? (Date.now() - gameStartTimeStamp) / 1000 : null;
       saveHallOfFameEntry(
         gameStatusResult.winnerName || (gameStatusResult.reason === 'stalemate' ? "Draw" : "N/A"),
         gameStatusResult.winnerName === actingPlayerNameForStatus ? opponentPlayerNameForStatus : actingPlayerNameForStatus,
         props.gameMode,
-        props.gameStartTimeStamp,
+        gameStartTimeStamp,
         duration,
         gameStatusResult.reason || (gameStatusResult.winner ? undefined : 'draw')
       );
@@ -133,8 +178,70 @@ export const useGameState = (props: any) => {
     return { gameStatusResult, newKingInCheckPos };
   }, [
       props.player1Name, props.player2Name, props.getCurrentPlayerRealName, props.getOpponentPlayerName,
-      props.gameMode, props.gameStartTimeStamp, hasWinSoundPlayedThisGame, props.layoutSettings.isSoundEnabled,
+      props.gameMode, gameStartTimeStamp, hasWinSoundPlayedThisGame, props.layoutSettings.isSoundEnabled,
       setGameStatus
+  ]);
+  
+  // --- Timer Effect (from useGameTimer) ---
+  useEffect(() => {
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    if (!timeLimitPerPlayer || gameStatus.isGameOver || promotionSquare || props.isResignModalOpen || props.gameMode === 'puzzle') {
+        return;
+    }
+
+    timerIntervalRef.current = setInterval(() => {
+        let p1Time = player1TimeLeft;
+        let p2Time = player2TimeLeft;
+        let timedOutPlayer: PlayerColor | null = null;
+
+        if (currentPlayer === PlayerColor.WHITE) {
+            if (p1Time !== null) {
+                p1Time -= 1;
+                setPlayer1TimeLeft(p1Time);
+                if (p1Time <= 0) {
+                    timedOutPlayer = PlayerColor.WHITE;
+                }
+            }
+        } else { // Black's turn
+            if (p2Time !== null) {
+                p2Time -= 1;
+                setPlayer2TimeLeft(p2Time);
+                if (p2Time <= 0) {
+                    timedOutPlayer = PlayerColor.BLACK;
+                }
+            }
+        }
+
+        const shouldUpdateOnline = props.gameMode === 'online' && props.onlineGameIdForStorage && currentPlayer === props.localPlayerColorForStorage;
+
+        if (timedOutPlayer) {
+            if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+            const winner = timedOutPlayer === PlayerColor.WHITE ? PlayerColor.BLACK : PlayerColor.WHITE;
+            updateGameStatus(boardState, winner, castlingRights, enPassantTarget, 'timeout').then(({ gameStatusResult }) => {
+                 if (props.gameMode === 'online' && props.onlineGameIdForStorage) {
+                    props.updateOnlineGameState(props.onlineGameIdForStorage, {
+                        gameStatus: gameStatusResult,
+                        player1TimeLeft: p1Time,
+                        player2TimeLeft: p2Time,
+                        lastMoveBy: timedOutPlayer,
+                    });
+                }
+            });
+        } else if (shouldUpdateOnline && props.onlineGameIdForStorage) {
+            props.updateOnlineGameState(props.onlineGameIdForStorage, {
+                player1TimeLeft: p1Time,
+                player2TimeLeft: p2Time,
+            });
+        }
+    }, 1000) as unknown as number;
+
+    return () => {
+        if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    };
+  }, [
+    currentPlayer, timeLimitPerPlayer, gameStatus.isGameOver, promotionSquare, props.isResignModalOpen,
+    boardState, castlingRights, enPassantTarget, updateGameStatus, props.gameMode,
+    props.onlineGameIdForStorage, player1TimeLeft, player2TimeLeft, props.localPlayerColorForStorage, props.updateOnlineGameState
   ]);
 
   const handleSuccessfulPuzzleMove = useCallback((comment?: string) => {
@@ -154,6 +261,15 @@ export const useGameState = (props: any) => {
   ) => {
     const movingPiece = boardState[from[0]][from[1]];
     if (!movingPiece) return;
+
+     if (!isPuzzleMove) {
+        const historyEntry = createHistoryEntry(
+            boardState, currentPlayer, castlingRights, enPassantTarget,
+            capturedByWhite, capturedByBlack, gameStatus, kingInCheckPosition,
+            lastMove, player1TimeLeft, player2TimeLeft, moveHistory.length
+        );
+        addMoveToHistory(historyEntry);
+    }
 
     const { newBoard, newCastlingRights, newEnPassantTarget, promotionSquare: promSq, capturedPiece } =
       performMakeMoveLogic(boardState, from, to, castlingRights, enPassantTarget, promotionType);
@@ -200,8 +316,8 @@ export const useGameState = (props: any) => {
         props.updateOnlineGameState(props.onlineGameIdForStorage, {
           boardState: newBoard, castlingRights: newCastlingRights, enPassantTarget: newEnPassantTarget,
           capturedByWhite: newCapturedByWhite, capturedByBlack: newCapturedByBlack, lastMove: newLastMove,
-          player1TimeLeft: props.player1TimeLeft,
-          player2TimeLeft: props.player2TimeLeft,
+          player1TimeLeft: player1TimeLeft,
+          player2TimeLeft: player2TimeLeft,
           lastMoveBy: currentPlayer,
         });
       }
@@ -216,8 +332,8 @@ export const useGameState = (props: any) => {
             castlingRights: newCastlingRights, enPassantTarget: newEnPassantTarget,
             capturedByWhite: newCapturedByWhite, capturedByBlack: newCapturedByBlack,
             gameStatus: finalGameStatus, kingInCheckPosition: finalKcip, lastMove: newLastMove,
-            player1TimeLeft: props.player1TimeLeft,
-            player2TimeLeft: props.player2TimeLeft,
+            player1TimeLeft: player1TimeLeft,
+            player2TimeLeft: player2TimeLeft,
             lastMoveBy: currentPlayer,
         });
       }
@@ -225,11 +341,13 @@ export const useGameState = (props: any) => {
     }
     setSelectedPiecePosition(null); setPossibleMoves([]);
   }, [
-    boardState, currentPlayer, castlingRights, enPassantTarget, updateGameStatus,
+    boardState, currentPlayer, castlingRights, enPassantTarget, capturedByWhite, capturedByBlack, 
+    gameStatus, kingInCheckPosition, lastMove, player1TimeLeft, player2TimeLeft, moveHistory.length,
+    addMoveToHistory, createHistoryEntry, updateGameStatus,
     props.getCurrentPlayerRealName, props.getOpponentPlayerName, props.layoutSettings.isSoundEnabled,
-    capturedByWhite, capturedByBlack, props.gameMode, props.onlineGameIdForStorage,
+    props.gameMode, props.onlineGameIdForStorage,
     props.isOnlineGameReadyForStorage, props.updateOnlineGameState, props.lastMoveByRef,
-    props.player1TimeLeft, props.player2TimeLeft, handleSuccessfulPuzzleMove, currentPuzzle
+    handleSuccessfulPuzzleMove, currentPuzzle
   ]);
 
   const handleSquareClick = useCallback((pos: Position) => {
@@ -301,8 +419,8 @@ export const useGameState = (props: any) => {
          props.updateOnlineGameState(props.onlineGameIdForStorage, {
             boardState: tempBoard, currentPlayer: finalGameStatus.isGameOver ? currentPlayer : nextPlayer,
             gameStatus: finalGameStatus, kingInCheckPosition: kcipAfterPromo, lastMove,
-            player1TimeLeft: props.player1TimeLeft,
-            player2TimeLeft: props.player2TimeLeft,
+            player1TimeLeft: player1TimeLeft,
+            player2TimeLeft: player2TimeLeft,
             lastMoveBy: currentPlayer,
         });
         props.lastMoveByRef.current = currentPlayer;
@@ -313,7 +431,7 @@ export const useGameState = (props: any) => {
   }, [
     boardState, promotionSquare, currentPlayer, castlingRights, enPassantTarget, updateGameStatus,
     props.getCurrentPlayerRealName, props.gameMode, props.onlineGameIdForStorage, lastMove,
-    props.updateOnlineGameState, props.lastMoveByRef, props.player1TimeLeft, props.player2TimeLeft
+    props.updateOnlineGameState, props.lastMoveByRef, player1TimeLeft, player2TimeLeft
   ]);
   
   const executeResignation = useCallback(() => {
@@ -333,16 +451,16 @@ export const useGameState = (props: any) => {
     playSound(SOUND_WIN, props.layoutSettings.isSoundEnabled);
     setHasWinSoundPlayedThisGame(true);
 
-    const duration = props.gameStartTimeStamp ? (Date.now() - props.gameStartTimeStamp) / 1000 : null;
+    const duration = gameStartTimeStamp ? (Date.now() - gameStartTimeStamp) / 1000 : null;
     if (props.gameMode && props.gameMode !== 'puzzle') {
-        saveHallOfFameEntry(winnerName, loserName, props.gameMode, props.gameStartTimeStamp, duration, 'resignation');
+        saveHallOfFameEntry(winnerName, loserName, props.gameMode, gameStartTimeStamp, duration, 'resignation');
     }
 
     if (props.gameMode === 'online' && props.onlineGameIdForStorage) {
         props.updateOnlineGameState(props.onlineGameIdForStorage, {
             gameStatus: newGameStatus,
-            player1TimeLeft: props.player1TimeLeft,
-            player2TimeLeft: props.player2TimeLeft,
+            player1TimeLeft: player1TimeLeft,
+            player2TimeLeft: player2TimeLeft,
             lastMoveBy: playerAttemptingResign,
         });
         props.lastMoveByRef.current = playerAttemptingResign;
@@ -351,12 +469,50 @@ export const useGameState = (props: any) => {
     props.setPlayerAttemptingResign(null);
   }, [
     gameStatus.isGameOver, props.player1Name, props.player2Name, props.layoutSettings.isSoundEnabled,
-    props.gameMode, props.gameStartTimeStamp, props.onlineGameIdForStorage,
+    props.gameMode, gameStartTimeStamp, props.onlineGameIdForStorage,
     props.updateOnlineGameState, props.lastMoveByRef, setGameStatus,
-    props.setIsResignModalOpen, props.setPlayerAttemptingResign, props.playerAttemptingResign
+    props.setIsResignModalOpen, props.setPlayerAttemptingResign, props.playerAttemptingResign,
+    player1TimeLeft, player2TimeLeft
   ]);
+
+  const handleUndoMove = useCallback(() => {
+    if (moveHistory.length === 0 || gameStatus.isGameOver || 
+        promotionSquare || props.isResignModalOpen) {
+      return;
+    }
+
+    const lastState = moveHistory[moveHistory.length - 1];
+    setBoardState(lastState.boardState);
+    setCurrentPlayer(lastState.currentPlayer);
+    setCastlingRights(lastState.castlingRights);
+    setEnPassantTarget(lastState.enPassantTarget);
+    setCapturedByWhite(lastState.capturedByWhite);
+    setCapturedByBlack(lastState.capturedByBlack);
+    setGameStatus(lastState.gameStatus);
+    props.addToast("Last move undone.", 'info');
+    setKingInCheckPosition(lastState.kingInCheckPosition);
+    setLastMove(lastState.lastMove);
+    setPlayer1TimeLeft(lastState.player1TimeLeft);
+    setPlayer2TimeLeft(lastState.player2TimeLeft);
+    setSelectedPiecePosition(null);
+    setPossibleMoves([]);
+    setPromotionSquare(null);
+
+    setMoveHistory(prev => prev.slice(0, -1));
+  }, [moveHistory, gameStatus.isGameOver, promotionSquare, props.isResignModalOpen, props.addToast, setGameStatus]);
+
+
+  const resetTimerState = useCallback(() => {
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    timerIntervalRef.current = null;
+    setTimeLimitPerPlayer(null);
+    setPlayer1TimeLeft(null);
+    setPlayer2TimeLeft(null);
+    setGameStartTimeStamp(null);
+  }, []);
   
   const resetCoreGameState = useCallback(() => {
+    resetTimerState();
     setBoardState(createInitialBoard());
     setCurrentPlayer(PlayerColor.WHITE);
     setSelectedPiecePosition(null);
@@ -370,11 +526,12 @@ export const useGameState = (props: any) => {
     setCapturedByWhite([]);
     setCapturedByBlack([]);
     setHasWinSoundPlayedThisGame(false);
+    setMoveHistory([]);
     // Reset puzzle state
     setCurrentPuzzleIndex(0);
     setCurrentPuzzleState(null);
     setPuzzleSolutionStep(0);
-  }, []);
+  }, [resetTimerState]);
 
   const loadPuzzle = useCallback((index: number) => {
     if (index < 0 || index >= PUZZLES.length) return;
@@ -448,5 +605,14 @@ export const useGameState = (props: any) => {
     puzzleSolutionStep,
     setPuzzleSolutionStep,
     loadPuzzle,
+    // Timer exports
+    timeLimitPerPlayer, setTimeLimitPerPlayer,
+    player1TimeLeft, setPlayer1TimeLeft,
+    player2TimeLeft, setPlayer2TimeLeft,
+    gameStartTimeStamp, setGameStartTimeStamp,
+    resetTimerState,
+    // History exports
+    moveHistory,
+    handleUndoMove,
   };
 };

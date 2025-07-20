@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Piece, PlayerColor, Theme, LayoutSettings } from '../types';
 import PieceDisplay from './PieceDisplay';
@@ -54,6 +53,7 @@ const CapturedPiecesDisplay: React.FC<CapturedPiecesDisplayProps> = ({ pieces, p
               piece={piece}
               size={capturedPieceIconSize} 
               color={getPieceIconColor(piece.color, theme, layoutSettings)}
+              pieceSetId={layoutSettings.pieceSetId}
             />
           </div>
         ))}

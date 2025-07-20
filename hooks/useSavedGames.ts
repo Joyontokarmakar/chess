@@ -38,7 +38,7 @@ interface UseSavedGamesProps {
   setBoardState: React.Dispatch<React.SetStateAction<BoardState>>;
   setCurrentPlayer: React.Dispatch<React.SetStateAction<PlayerColor>>;
   setPlayer1Name: (name: string) => void;
-  setPlayer2Name: (name: string, gameMode?: GameMode) => void;
+  setPlayer2Name: (name: string) => void;
   setCastlingRights: React.Dispatch<React.SetStateAction<CastlingRights>>;
   setEnPassantTarget: React.Dispatch<React.SetStateAction<Position | null>>;
   setCapturedByWhite: React.Dispatch<React.SetStateAction<Piece[]>>;
@@ -115,7 +115,7 @@ export const useSavedGames = (props: UseSavedGamesProps) => {
     props.setBoardState(gameToLoad.boardState);
     props.setCurrentPlayer(gameToLoad.currentPlayer);
     props.setPlayer1Name(gameToLoad.player1Name);
-    props.setPlayer2Name(gameToLoad.player2Name, gameToLoad.gameMode);
+    props.setPlayer2Name(gameToLoad.player2Name);
     props.setCastlingRights(gameToLoad.castlingRights);
     props.setEnPassantTarget(gameToLoad.enPassantTarget);
     props.setCapturedByWhite(gameToLoad.capturedByWhite);

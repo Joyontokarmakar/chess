@@ -19,7 +19,7 @@ interface UseOnlinePlayProps {
   addToast: (message: string, type?: ToastType, duration?: number) => void;
   determineToastTypeForGameStatus: (status: GameStatus) => ToastType;
   setPlayer1Name: (name: string) => void;
-  setPlayer2Name: (name: string, gameMode?: GameMode) => void;
+  setPlayer2Name: (name: string) => void;
   setKingInCheckPosition: React.Dispatch<React.SetStateAction<Position | null>>;
   setLastMove: React.Dispatch<React.SetStateAction<{ from: Position; to: Position } | null>>;
   setTimeLimitPerPlayer: (limit: number | null) => void;

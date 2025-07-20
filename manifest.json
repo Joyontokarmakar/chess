@@ -1,0 +1,9 @@
+{
+  "name": "Classic Chess Championship - Free Online Chess Game",
+  "short_name": "Classic Chess",
+  "description": "Play a feature-rich chess game online or locally. Challenge our Gemini AI, play with friends, customize themes, save games, and track your victories in the Hall of Fame. Learn chess rules with the integrated guide. Built with React, TypeScript, and Tailwind CSS.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#1E293B"
+}

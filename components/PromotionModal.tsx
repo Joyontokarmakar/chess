@@ -59,6 +59,7 @@ const PromotionModal: React.FC<PromotionModalProps> = ({ playerColor, onPromote,
                   piece={pieceForDisplay}
                   size={iconSize}
                   color={getPieceIconColor(playerColor, theme, layoutSettings)}
+                  pieceSetId={layoutSettings.pieceSetId}
                 />
               </button>
             );

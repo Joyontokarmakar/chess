@@ -1,19 +1,38 @@
 
 
 import React from 'react';
-import { PieceType, PlayerColor, AIDifficultyLevel, Puzzle, PuzzleDifficulty, CastlingRights, BoardState, Piece, Position, ChangelogVersion, TimeOptionKey } from './types';
-import { FaChessQueen, FaChessRook, FaChessBishop, FaChessKnight, FaChessPawn } from 'react-icons/fa';
-import { GiChessKing } from 'react-icons/gi';
+import { PieceType, PlayerColor, AIDifficultyLevel, Puzzle, PuzzleDifficulty, CastlingRights, BoardState, Piece, Position, ChangelogVersion, TimeOptionKey, PieceSetId } from './types';
+import { FaChessQueen, FaChessRook, FaChessBishop, FaChessKnight, FaChessPawn, FaChessKing } from 'react-icons/fa';
+import { GiChessKing, GiChessPawn, GiChessRook, GiChessKnight, GiChessBishop, GiChessQueen } from 'react-icons/gi';
 
 // Maps PieceType to its corresponding Font Awesome icon component from react-icons.
-export const PIECE_ICON_COMPONENTS: Record<PieceType, React.ElementType> = {
-  [PieceType.KING]: GiChessKing,
-  [PieceType.QUEEN]: FaChessQueen,
-  [PieceType.ROOK]: FaChessRook,
-  [PieceType.BISHOP]: FaChessBishop,
-  [PieceType.KNIGHT]: FaChessKnight,
-  [PieceType.PAWN]: FaChessPawn,
+export const PIECE_SETS: Record<PieceSetId, Record<PieceType, React.ElementType>> = {
+  'default': {
+    [PieceType.KING]: GiChessKing,
+    [PieceType.QUEEN]: FaChessQueen,
+    [PieceType.ROOK]: FaChessRook,
+    [PieceType.BISHOP]: FaChessBishop,
+    [PieceType.KNIGHT]: FaChessKnight,
+    [PieceType.PAWN]: FaChessPawn,
+  },
+  'staunton': {
+    [PieceType.KING]: FaChessKing,
+    [PieceType.QUEEN]: FaChessQueen,
+    [PieceType.ROOK]: FaChessRook,
+    [PieceType.BISHOP]: FaChessBishop,
+    [PieceType.KNIGHT]: FaChessKnight,
+    [PieceType.PAWN]: FaChessPawn,
+  },
+  'merida': {
+    [PieceType.KING]: GiChessKing,
+    [PieceType.QUEEN]: GiChessQueen,
+    [PieceType.ROOK]: GiChessRook,
+    [PieceType.BISHOP]: GiChessBishop,
+    [PieceType.KNIGHT]: GiChessKnight,
+    [PieceType.PAWN]: GiChessPawn,
+  }
 };
+
 
 export const INITIAL_CASTLING_RIGHTS: CastlingRights = {
   [PlayerColor.WHITE]: { kingSide: true, queenSide: true },
@@ -281,7 +300,63 @@ export const BOARD_STYLE_CONFIG = {
       lastMoveFlashColorMid: "rgba(217, 119, 6, 0.7)",  
       lastMoveFlashColorEnd: "rgba(217, 119, 6, 0.0)",
     }
-  }
+  },
+  'minimal-dark': {
+    light: {
+      container: "bg-gray-800/20 backdrop-blur-md border-2 border-gray-700/30 shadow-xl shadow-black/20",
+      lightSquare: "bg-gray-500/80 border border-gray-600/40",
+      darkSquare: "bg-gray-700/80 border border-gray-800/40",
+      selectedSquareBg: "bg-cyan-500/20",
+      selectedSquareRing: "ring-2 ring-cyan-500/40 ring-inset",
+      possibleMoveDot: "bg-cyan-500/40 opacity-60",
+      possibleMoveRing: "ring-2 ring-cyan-500/50 ring-inset opacity-70",
+      lastMoveSquareOverlay: "bg-cyan-600/15 pointer-events-none",
+      lastMoveFlashColorStart: "rgba(6, 182, 212, 0.0)",
+      lastMoveFlashColorMid: "rgba(6, 182, 212, 0.6)",   
+      lastMoveFlashColorEnd: "rgba(6, 182, 212, 0.0)",
+    },
+    dark: {
+      container: "bg-gray-900/30 backdrop-blur-md border-2 border-gray-800/40 shadow-2xl shadow-black/40",
+      lightSquare: "bg-gray-600/70 border border-gray-700/40", 
+      darkSquare: "bg-gray-800/70 border border-gray-900/40", 
+      selectedSquareBg: "bg-sky-600/20",
+      selectedSquareRing: "ring-2 ring-sky-500/40 ring-inset",
+      possibleMoveDot: "bg-sky-600/40 opacity-60",
+      possibleMoveRing: "ring-2 ring-sky-500/50 ring-inset opacity-70",
+      lastMoveSquareOverlay: "bg-sky-700/15 pointer-events-none",
+      lastMoveFlashColorStart: "rgba(2, 132, 199, 0.0)",
+      lastMoveFlashColorMid: "rgba(2, 132, 199, 0.6)",  
+      lastMoveFlashColorEnd: "rgba(2, 132, 199, 0.0)",
+    }
+  },
+  'minimal-light': {
+    light: {
+      container: "bg-gray-100/30 backdrop-blur-md border-2 border-gray-300/40 shadow-xl shadow-gray-400/20",
+      lightSquare: "bg-white/80 border border-gray-200/50",
+      darkSquare: "bg-gray-300/80 border border-gray-400/50",
+      selectedSquareBg: "bg-slate-400/30",
+      selectedSquareRing: "ring-2 ring-slate-500/50 ring-inset",
+      possibleMoveDot: "bg-slate-500/50 opacity-60",
+      possibleMoveRing: "ring-2 ring-gray-600/60 ring-inset opacity-70",
+      lastMoveSquareOverlay: "bg-slate-600/15 pointer-events-none",
+      lastMoveFlashColorStart: "rgba(71, 85, 105, 0.0)",
+      lastMoveFlashColorMid: "rgba(71, 85, 105, 0.6)",   
+      lastMoveFlashColorEnd: "rgba(71, 85, 105, 0.0)",
+    },
+    dark: {
+      container: "bg-gray-400/20 backdrop-blur-md border-2 border-gray-500/30 shadow-2xl shadow-black/20",
+      lightSquare: "bg-gray-100/70 border border-gray-300/40", 
+      darkSquare: "bg-gray-400/70 border border-gray-500/40", 
+      selectedSquareBg: "bg-slate-500/30",
+      selectedSquareRing: "ring-2 ring-slate-400/50 ring-inset",
+      possibleMoveDot: "bg-slate-600/50 opacity-60",
+      possibleMoveRing: "ring-2 ring-gray-500/60 ring-inset opacity-70",
+      lastMoveSquareOverlay: "bg-slate-700/15 pointer-events-none",
+      lastMoveFlashColorStart: "rgba(51, 65, 85, 0.0)",
+      lastMoveFlashColorMid: "rgba(51, 65, 85, 0.6)",  
+      lastMoveFlashColorEnd: "rgba(51, 65, 85, 0.0)",
+    }
+  },
 };
 
 // --- Sample Puzzles ---
@@ -342,9 +417,22 @@ export const PUZZLES: Puzzle[] = [
 // --- Changelog Data ---
 export const CHANGELOG_DATA: ChangelogVersion[] = [
   {
+    version: "5.0",
+    title: "PWA & UI/UX Enhancements",
+    features: [
+        "New! Progressive Web App (PWA): The app is now installable on your device for a native-like experience and faster access.",
+        "New! Offline Functionality: Thanks to service workers, the app can be used offline for non-AI game modes.",
+        "New! Desktop Sidebar Layout: A new, persistent sidebar menu for desktop users provides quicker access to all game modes and settings.",
+        "New! Multiple Piece Sets: Customize your game further by choosing from different piece visual styles (Default, Staunton, Merida) in the Appearance settings.",
+        "New! Drag and Drop Movement: You can now move pieces by dragging them to their destination square as an alternative to clicking.",
+        "Enhancement! Smoother UI interactions and improved responsive layouts.",
+        "Fix! Resolved a critical error during AI game setup, ensuring difficulty levels are correctly applied.",
+        "Fix! Addressed an application crash caused by a syntax error in the UI state management hook.",
+    ],
+  },
+  {
     version: "4.3",
     title: "Architectural Fixes & UI Enhancements",
-    date: "2024-08-04",
     features: [
         "Fix! Critical Game Logic: Overhauled application architecture to fix a major bug that prevented game modes (Play AI, Friend, Coach, Puzzle) from launching.",
         "New! Multi-Game Analysis History: Access a list of your last 10 games and launch a detailed, move-by-move analysis for any of them.",
@@ -358,7 +446,6 @@ export const CHANGELOG_DATA: ChangelogVersion[] = [
   {
     version: "4.2",
     title: "Modernization & User Experience",
-    date: "2024-08-02",
     features: [
         "New! Welcome Modal: A one-time welcome screen now greets new visitors.",
         "Redesign! Modernized Resign Button: Resign buttons are now seamlessly integrated into player panels for a cleaner look.",
@@ -370,7 +457,6 @@ export const CHANGELOG_DATA: ChangelogVersion[] = [
   {
     version: "4.1",
     title: "UI/UX Enhancements & Customization",
-    date: "2024-08-01", // Example date
     features: [
       "New! Custom Resign Confirmation Modal: Clearer confirmation before resigning.",
       "New! Game Over Overlay: Displays winner/draw status with a celebratory confetti animation.",

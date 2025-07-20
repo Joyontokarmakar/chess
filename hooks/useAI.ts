@@ -1,4 +1,5 @@
 
+
 import { useState, useEffect, useCallback } from 'react';
 import { BoardState, PlayerColor, CastlingRights, Position, PieceType, AIMove, GameStatus, AIDifficultyLevel, GameMode, ToastType } from '../types';
 import { getComputerMove as fetchComputerMove, getCoachMoveExplanation as fetchCoachExplanation } from '../utils/geminiApi';
@@ -53,7 +54,7 @@ export const useAI = ({
     if (isAIsTurn && !gameStatus.isGameOver && !promotionSquare && !isResignModalOpen && !isRenameModalOpen && !isComputerThinking) {
       setIsComputerThinkingState(true);
       const currentAiPlayerName = gameMode === 'coach' ? COACH_AI_PLAYER_NAME : AI_PLAYER_NAME;
-      addToast(`${currentAiPlayerName} is thinking...`, 'info', 2500);
+      addToast(`${currentAiPlayerName} is thinking...`, 'info');
 
       const difficultyForThisMove = gameMode === 'coach' ? AIDifficultyLevel.GRANDMASTER : aiDifficulty;
       const aiMoveDelay = timeLimitPerPlayer ? Math.max(1000, Math.random() * 2000 + 1000) : 500;

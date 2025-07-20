@@ -1,4 +1,3 @@
-
 import React, { useCallback, useState, useEffect } from 'react';
 import { PlayerColor, PieceType, GameMode, AIMove, LayoutSettings, WelcomeArenaMenuItemId, Piece, Theme, AIDifficultyLevel, OnlineGameState, MoveHistoryEntry, Position, GameAnalysis, CompletedGame, WelcomeArenaMenuItem } from './types';
 import { AI_PLAYER_NAME, COACH_AI_PLAYER_NAME, AI_DIFFICULTY_LEVELS } from './constants';
@@ -8,6 +7,7 @@ import Board from './components/Board';
 import PromotionModal from './components/PromotionModal';
 import { PlayerDisplayPanel } from './components/PlayerDisplayPanel';
 import MenuModal from './components/MenuModal';
+import DashboardMenu from './components/DashboardMenu'; // Import the new dashboard menu component
 import PlayerNameEntry from './components/PlayerNameEntry';
 import OnlineGameSetup from './components/OnlineGameSetup';
 import HallOfFame from './components/HallOfFame';
@@ -31,15 +31,14 @@ import InfoModal from './components/InfoModal';
 import AboutContent from './content/aboutContent';
 import TermsContent from './content/termsContent';
 import PrivacyContent from './content/privacyContent';
-import { FaUndo, FaLightbulb } from 'react-icons/fa';
+import { FaUndo, FaLightbulb, FaUsers } from 'react-icons/fa';
+import countapi from 'countapi-js';
 
 import { useTheme } from './hooks/useTheme';
 import { useUIState } from './hooks/useUIState';
 import { useLayoutSettings } from './hooks/useLayoutSettings';
 import { useToasts } from './hooks/useToasts';
 import { usePlayerManagement } from './hooks/usePlayerManagement';
-import { useGameTimer } from './hooks/useGameTimer';
-import { useMoveHistory } from './hooks/useMoveHistory';
 import { useGameState } from './hooks/useGameState';
 import { useAI } from './hooks/useAI';
 import { useOnlinePlay } from './hooks/useOnlinePlay';
@@ -106,60 +105,57 @@ const App: React.FC = () => {
     setKingInCheckPosition: () => {}, setLastMove: () => {}, setTimeLimitPerPlayer: () => {}, setPlayer1TimeLeft: () => {}, setPlayer2TimeLeft: () => {},
     setGameStartTimeStamp: () => {}, setHasWinSoundPlayedThisGame: () => {}, layoutSettings, player2Name
   });
-
-  const {
-    timeLimitPerPlayer, setTimeLimitPerPlayer,
-    player1TimeLeft, setPlayer1TimeLeft,
-    player2TimeLeft, setPlayer2TimeLeft,
-    gameStartTimeStamp, setGameStartTimeStamp,
-    resetTimerState
-  } = useGameTimer({ 
-    currentPlayer: PlayerColor.WHITE, gameStatus: { message: "", isGameOver: false }, promotionSquare: null, isResignModalOpen, 
-    boardState: [], castlingRights: { [PlayerColor.WHITE]: {kingSide:false, queenSide:false}, [PlayerColor.BLACK]: {kingSide:false, queenSide:false} }, enPassantTarget: null, updateGameStatus: async () => {},
-    gameMode, onlineGameIdForStorage, localPlayerColorForStorage, updateOnlineGameState
-  });
   
   const gameState = useGameState({
     player1Name, player2Name, getCurrentPlayerRealName, getOpponentPlayerName,
     layoutSettings, addToast, determineToastTypeForGameStatus,
     setPlayerAttemptingResign, setIsResignModalOpen, playerAttemptingResign,
     setPlayer1Name, setPlayer2Name,
-    gameMode, gameStartTimeStamp,
+    gameMode,
     onlineGameIdForStorage, isOnlineGameReadyForStorage,
     updateOnlineGameState, lastMoveByRef,
-  });
-
-  const ai = useAI({
-    gameStatus: gameState.gameStatus, currentPlayer: gameState.currentPlayer, promotionSquare: gameState.promotionSquare, 
-    isResignModalOpen, isRenameModalOpen,
-    boardState: gameState.boardState, castlingRights: gameState.castlingRights, enPassantTarget: gameState.enPassantTarget, 
-    applyMove: gameState.applyMove,
-    timeLimitPerPlayer, aiDifficulty, addToast, gameMode,
-  });
-
-  const moveHistory = useMoveHistory({
-    gameStatus: gameState.gameStatus, currentPlayer: gameState.currentPlayer, isComputerThinking: ai.isComputerThinking,
-    promotionSquare: gameState.promotionSquare, isResignModalOpen, isRenameModalOpen,
-    gameMode,
-    setBoardState: gameState.setBoardState, setCurrentPlayer: gameState.setCurrentPlayer, setCastlingRights: gameState.setCastlingRights, 
-    setEnPassantTarget: gameState.setEnPassantTarget,
-    setCapturedByWhite: gameState.setCapturedByWhite, setCapturedByBlack: gameState.setCapturedByBlack, 
-    setGameStatus: gameState.setGameStatus, addToast,
-    setKingInCheckPosition: gameState.setKingInCheckPosition, setLastMove: gameState.setLastMove, 
-    setPlayer1TimeLeft, setPlayer2TimeLeft,
-    setSelectedPiecePosition: gameState.setSelectedPiecePosition, setPossibleMoves: gameState.setPossibleMoves, 
-    setPromotionSquare: gameState.setPromotionSquare,
-    setHintSuggestion: ai.setHintSuggestion,
-    setCoachExplanation: ai.setCoachExplanation,
-    moveHistory: [],
+    isResignModalOpen,
+    localPlayerColorForStorage,
   });
   
+  const ai = useAI({
+    gameStatus: gameState.gameStatus,
+    currentPlayer: gameState.currentPlayer,
+    promotionSquare: gameState.promotionSquare,
+    isResignModalOpen, isRenameModalOpen,
+    boardState: gameState.boardState,
+    castlingRights: gameState.castlingRights,
+    enPassantTarget: gameState.enPassantTarget,
+    applyMove: gameState.applyMove,
+    timeLimitPerPlayer: gameState.timeLimitPerPlayer,
+    aiDifficulty, addToast, gameMode,
+  });
+
+  const handleUndoMoveWithAIReset = useCallback(() => {
+    if ((gameMode === 'computer' || gameMode === 'coach') && ai.isComputerThinking) {
+      return; // Don't allow undo while AI is thinking
+    }
+    gameState.handleUndoMove();
+    ai.resetAIState();
+  }, [gameState, gameMode, ai]);
+
+  const [visitorCount, setVisitorCount] = useState(0);
+
+  useEffect(() => {
+    // The countapi-js library uses callbacks, not Promises.
+    countapi.hit('classic-chess-joyonto.com', 'visits', (result: { value: number }) => {
+      if (result && typeof result.value === 'number') {
+        setVisitorCount(result.value);
+      } else {
+        console.warn('Could not fetch visitor count from CountAPI.');
+      }
+    });
+  }, []);
+
   const resetGameToWelcomeArena = useCallback((softResetForModeChange: boolean = false) => {
     gameState.resetCoreGameState();
     resetPlayerManagementState();
-    resetTimerState();
     ai.resetAIState();
-    moveHistory.resetMoveHistory();
     resetOnlinePlayState();
     
     resetUIState();
@@ -173,7 +169,7 @@ const App: React.FC = () => {
     } else {
        gameState.setGameStatus({ message: "Initializing new game...", isGameOver: false });
     }
-  }, [gameState, resetPlayerManagementState, resetTimerState, ai, moveHistory, resetOnlinePlayState, resetUIState, setIsMenuOpen]);
+  }, [gameState, resetPlayerManagementState, ai, resetOnlinePlayState, resetUIState, setIsMenuOpen]);
 
   const handleLogoClick = useCallback(() => {
     resetGameToWelcomeArena(false);
@@ -211,41 +207,43 @@ const App: React.FC = () => {
   }, [setIsOnlineWarningModalOpen]);
 
   const handleTimeModeSelected = useCallback((selectedTime: number | null) => {
-    setTimeLimitPerPlayer(selectedTime);
+    gameState.setTimeLimitPerPlayer(selectedTime);
     setIsTimeModeSelectionOpen(false);
-  }, [setTimeLimitPerPlayer]);
+  }, [gameState.setTimeLimitPerPlayer]);
 
   const handlePlayerNameSetup = useCallback((p1Name: string, p2NameProvided?: string, difficulty?: AIDifficultyLevel) => {
     const finalP1Name = p1Name.trim() || "Player 1";
-    let finalP2Name = "Player 2";
     setPlayer1Name(finalP1Name);
 
-    if (gameMode === 'friend') {
-      finalP2Name = p2NameProvided?.trim() || "Player 2";
-      setPlayer2Name(finalP2Name, gameMode);
-    } else if (gameMode === 'computer') {
-      finalP2Name = AI_PLAYER_NAME;
-      setPlayer2Name(finalP2Name, gameMode);
+    // The PlayerNameEntry component already provides the correct name (e.g., "Gemini AI").
+    setPlayer2Name(p2NameProvided || "Player 2");
+
+    if (gameMode === 'computer') {
       if (difficulty) setAiDifficulty(difficulty);
     } else if (gameMode === 'coach') {
-      finalP2Name = COACH_AI_PLAYER_NAME;
-      setPlayer2Name(finalP2Name, gameMode);
       setAiDifficulty(AIDifficultyLevel.GRANDMASTER);
     }
+
+    // Since the player2Name from state isn't updated until the next render,
+    // we determine the name for the initial message synchronously here.
+    const finalP2NameForMessage =
+      gameMode === 'computer' ? AI_PLAYER_NAME :
+      gameMode === 'coach' ? COACH_AI_PLAYER_NAME :
+      p2NameProvided?.trim() || "Player 2";
 
     setIsGameSetupComplete(true);
     setIsGameSetupPending(false);
     setViewingHallOfFame(false);
-    const startMsg = `Game started. Good luck, ${finalP1Name} and ${finalP2Name}! ${PlayerColor.WHITE}'s turn.`;
-    gameState.setGameStatus({ message: startMsg, isGameOver: false }); 
-    moveHistory.resetMoveHistory();
-    if (timeLimitPerPlayer) { 
-        const startTime = Date.now();
-        setPlayer1TimeLeft(timeLimitPerPlayer);
-        setPlayer2TimeLeft(timeLimitPerPlayer);
-        setGameStartTimeStamp(startTime);
+    const startMsg = `Game started. Good luck, ${finalP1Name} and ${finalP2NameForMessage}! ${PlayerColor.WHITE}'s turn.`;
+    gameState.setGameStatus({ message: startMsg, isGameOver: false });
+    
+    if (gameState.timeLimitPerPlayer) {
+      const startTime = Date.now();
+      gameState.setPlayer1TimeLeft(gameState.timeLimitPerPlayer);
+      gameState.setPlayer2TimeLeft(gameState.timeLimitPerPlayer);
+      gameState.setGameStartTimeStamp(startTime);
     }
-  }, [gameMode, setPlayer1Name, setPlayer2Name, setAiDifficulty, gameState.setGameStatus, moveHistory.resetMoveHistory, timeLimitPerPlayer, setPlayer1TimeLeft, setPlayer2TimeLeft, setGameStartTimeStamp, setViewingHallOfFame]);
+  }, [gameMode, setPlayer1Name, setPlayer2Name, setAiDifficulty, gameState.setGameStatus, gameState.timeLimitPerPlayer, gameState.setPlayer1TimeLeft, gameState.setPlayer2TimeLeft, gameState.setGameStartTimeStamp, setViewingHallOfFame]);
   
   useEffect(() => {
     if (gameMode === 'puzzle' && isGameSetupPending) {
@@ -284,10 +282,10 @@ const App: React.FC = () => {
       setPlayer2Name("Waiting for Player...");
     }
 
-    setTimeLimitPerPlayer(initialOnlineState.timeLimitPerPlayer);
-    setPlayer1TimeLeft(initialOnlineState.player1TimeLeft);
-    setPlayer2TimeLeft(initialOnlineState.player2TimeLeft);
-    setGameStartTimeStamp(initialOnlineState.gameStartTimeStamp);
+    gameState.setTimeLimitPerPlayer(initialOnlineState.timeLimitPerPlayer);
+    gameState.setPlayer1TimeLeft(initialOnlineState.player1TimeLeft);
+    gameState.setPlayer2TimeLeft(initialOnlineState.player2TimeLeft);
+    gameState.setGameStartTimeStamp(initialOnlineState.gameStartTimeStamp);
 
     setIsGameSetupPending(false);
     setIsGameSetupComplete(true);
@@ -305,7 +303,6 @@ const App: React.FC = () => {
     setOnlineGameIdForStorage, setLocalPlayerColorForStorage, setIsOnlineGameReadyForStorage, 
     setGameMode, gameState,
     setPlayer1Name, setPlayer2Name,
-    setTimeLimitPerPlayer, setPlayer1TimeLeft, setPlayer2TimeLeft, setGameStartTimeStamp,
     setIsGameSetupPending, setIsGameSetupComplete
   ]);
   
@@ -317,36 +314,28 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (gameState.gameStatus.isGameOver && gameMode && gameMode !== 'puzzle' && isGameSetupComplete && gameStartTimeStamp && lastProcessedGameTimestamp !== gameStartTimeStamp) {
-      setLastProcessedGameTimestamp(gameStartTimeStamp);
-
-      const finalHistory = [...moveHistory.moveHistory];
-      const finalStateEntry = moveHistory.createHistoryEntry(
-          gameState.boardState, gameState.currentPlayer, gameState.castlingRights, gameState.enPassantTarget,
-          gameState.capturedByWhite, gameState.capturedByBlack, gameState.gameStatus, gameState.kingInCheckPosition,
-          gameState.lastMove, player1TimeLeft, player2TimeLeft, finalHistory.length
-      );
-      finalHistory.push(finalStateEntry);
+    if (gameState.gameStatus.isGameOver && gameMode && gameMode !== 'puzzle' && isGameSetupComplete && gameState.gameStartTimeStamp && lastProcessedGameTimestamp !== gameState.gameStartTimeStamp) {
+      setLastProcessedGameTimestamp(gameState.gameStartTimeStamp);
 
       const newCompletedGame: CompletedGame = {
-        id: gameStartTimeStamp.toString(),
+        id: gameState.gameStartTimeStamp.toString(),
         player1Name,
         player2Name,
         gameMode,
-        gameStartDate: new Date(gameStartTimeStamp).toISOString(),
-        durationSeconds: gameStartTimeStamp ? (Date.now() - gameStartTimeStamp) / 1000 : null,
+        gameStartDate: new Date(gameState.gameStartTimeStamp).toISOString(),
+        durationSeconds: gameState.gameStartTimeStamp ? (Date.now() - gameState.gameStartTimeStamp) / 1000 : null,
         result: {
           winner: gameState.gameStatus.winner,
           winnerName: gameState.gameStatus.winnerName,
           reason: gameState.gameStatus.reason
         },
-        moveHistory: finalHistory
+        moveHistory: gameState.moveHistory
       };
       
       saveCompletedGame(newCompletedGame);
       setCompletedGames(getCompletedGames());
     }
-  }, [gameState.gameStatus, gameMode, isGameSetupComplete, gameStartTimeStamp, lastProcessedGameTimestamp, moveHistory, gameState.boardState, gameState.currentPlayer, gameState.castlingRights, gameState.enPassantTarget, gameState.capturedByWhite, gameState.capturedByBlack, gameState.kingInCheckPosition, gameState.lastMove, player1TimeLeft, player2TimeLeft, player1Name, player2Name]);
+  }, [gameState.gameStatus, gameState.moveHistory, gameMode, isGameSetupComplete, gameState.gameStartTimeStamp, lastProcessedGameTimestamp, player1Name, player2Name]);
 
   const { analysis, isAnalyzing, runAnalysis, clearAnalysis } = useAnalysis({ addToast });
   const [isAnalysisMode, setIsAnalysisMode] = useState(false);
@@ -393,41 +382,62 @@ const App: React.FC = () => {
 
   const handleRematch = useCallback(() => {
     gameState.resetCoreGameState();
-    moveHistory.resetMoveHistory();
     ai.resetAIState();
     
-    if (timeLimitPerPlayer) {
+    if (gameState.timeLimitPerPlayer) {
       const startTime = Date.now();
-      setPlayer1TimeLeft(timeLimitPerPlayer);
-      setPlayer2TimeLeft(timeLimitPerPlayer);
-      setGameStartTimeStamp(startTime);
+      gameState.setPlayer1TimeLeft(gameState.timeLimitPerPlayer);
+      gameState.setPlayer2TimeLeft(gameState.timeLimitPerPlayer);
+      gameState.setGameStartTimeStamp(startTime);
     } else {
-      resetTimerState();
+      gameState.resetTimerState();
     }
     
     const startMsg = `Rematch! Good luck, ${player1Name} and ${player2Name}! ${PlayerColor.WHITE}'s turn.`;
     gameState.setGameStatus({ message: startMsg, isGameOver: false });
   }, [
-    gameState, moveHistory.resetMoveHistory, ai.resetAIState, resetTimerState,
-    timeLimitPerPlayer, setPlayer1TimeLeft, setPlayer2TimeLeft, setGameStartTimeStamp,
+    gameState, ai.resetAIState,
     player1Name, player2Name
   ]);
   
   const savedGamesHook = useSavedGames({
     gameMode, isGameSetupComplete, gameStatus: gameState.gameStatus, addToast,
-    player1Name, player2Name, timeLimitPerPlayer, boardState: gameState.boardState, currentPlayer: gameState.currentPlayer,
+    player1Name, player2Name, timeLimitPerPlayer: gameState.timeLimitPerPlayer, boardState: gameState.boardState, currentPlayer: gameState.currentPlayer,
     castlingRights: gameState.castlingRights, enPassantTarget: gameState.enPassantTarget, capturedByWhite: gameState.capturedByWhite, capturedByBlack: gameState.capturedByBlack,
-    kingInCheckPosition: gameState.kingInCheckPosition, aiDifficulty, player1TimeLeft, player2TimeLeft,
-    gameStartTimeStamp, lastMove: gameState.lastMove,
+    kingInCheckPosition: gameState.kingInCheckPosition, aiDifficulty, player1TimeLeft: gameState.player1TimeLeft,
+    player2TimeLeft: gameState.player2TimeLeft,
+    gameStartTimeStamp: gameState.gameStartTimeStamp, lastMove: gameState.lastMove,
     resetGameToWelcomeArena: () => resetGameToWelcomeArena(true),
     setGameMode, setBoardState: gameState.setBoardState, setCurrentPlayer: gameState.setCurrentPlayer, setPlayer1Name, setPlayer2Name,
     setCastlingRights: gameState.setCastlingRights, setEnPassantTarget: gameState.setEnPassantTarget, setCapturedByWhite: gameState.setCapturedByWhite, setCapturedByBlack: gameState.setCapturedByBlack,
     setGameStatusDirectly: gameState.setGameStatus, setKingInCheckPosition: gameState.setKingInCheckPosition, setLocalPlayerColorForStorage,
-    setAiDifficultyDirectly: setAiDifficulty, setTimeLimitPerPlayerDirectly: setTimeLimitPerPlayer,
-    setPlayer1TimeLeftDirectly: setPlayer1TimeLeft, setPlayer2TimeLeftDirectly: setPlayer2TimeLeft,
-    setGameStartTimeStampDirectly: setGameStartTimeStamp, setLastMoveDirectly: gameState.setLastMove,
-    setIsGameSetupCompleteDirectly: setIsGameSetupComplete, setIsMenuOpen, resetMoveHistory: moveHistory.resetMoveHistory
+    setAiDifficultyDirectly: setAiDifficulty, setTimeLimitPerPlayerDirectly: gameState.setTimeLimitPerPlayer,
+    setPlayer1TimeLeftDirectly: gameState.setPlayer1TimeLeft, setPlayer2TimeLeftDirectly: gameState.setPlayer2TimeLeft,
+    setGameStartTimeStampDirectly: gameState.setGameStartTimeStamp, setLastMoveDirectly: gameState.setLastMove,
+    setIsGameSetupCompleteDirectly: setIsGameSetupComplete, setIsMenuOpen, resetMoveHistory: gameState.resetCoreGameState // Using resetCoreGameState which includes history reset
   });
+
+  const dashboardMenuProps = {
+    theme,
+    onToggleTheme: toggleTheme,
+    onResetToMainMenu: () => resetGameToWelcomeArena(true),
+    onSelectModeFromMenu: handleSelectModeFromWelcomeArena,
+    onSaveCurrentGame: savedGamesHook.handleSaveCurrentGame,
+    canSaveGame: gameMode === 'friend' && isGameSetupComplete && !gameState.gameStatus.isGameOver,
+    gameMode,
+    savedGames: savedGamesHook.savedGames,
+    onLoadSavedGame: savedGamesHook.handleLoadSavedGame,
+    onDeleteSavedGame: savedGamesHook.handleDeleteSavedGame,
+    onClearAllSavedGames: savedGamesHook.handleClearAllSavedGames,
+    onOpenLayoutCustomization: () => setIsLayoutModalOpen(true),
+    onOpenChessGuide: () => setIsChessGuideOpen(true),
+    onOpenChangelog: () => setIsChangelogModalOpen(true),
+    layoutSettings,
+    onLayoutSettingsChange: handleLayoutSettingsChange,
+    onOpenGameHistory: () => setIsGameHistoryModalOpen(true),
+    isHistoryAvailable: completedGames.length > 0,
+    visitorCount,
+  };
 
   const shouldShowWelcomeArena = (!gameMode || (!isGameSetupComplete && !isGameSetupPending)) &&
                                !viewingHallOfFame &&
@@ -532,321 +542,111 @@ const App: React.FC = () => {
     );
   }
 
+  const mainContentGradient = theme === 'dark' 
+    ? 'bg-[linear-gradient(to_bottom_right,_#1E293B,_#111827,_#0F172A)]'
+    : 'bg-[linear-gradient(to_bottom_right,_#E0E7FF,_#F3F4F6,_#E5E7EB)]';
+
+  const sidebarBg = theme === 'dark' ? 'bg-slate-800/40' : 'bg-slate-200/40';
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-start pt-4 sm:pt-6 p-2 sm:p-3 bg-transparent">
-      <ToastContainer toasts={activeToasts} onDismiss={removeToast} theme={theme} />
-      
-      {infoPage && (
-          <InfoModal
-            isOpen={!!infoPage}
-            onClose={() => setInfoPage(null)}
-            theme={theme}
-            title={
-              infoPage === 'about' ? 'About the Developer' :
-              infoPage === 'terms' ? 'Terms & Conditions' :
-              'Privacy Policy'
-            }
-            content={
-              infoPage === 'about' ? <AboutContent theme={theme} /> :
-              infoPage === 'terms' ? <TermsContent theme={theme} /> :
-              <PrivacyContent theme={theme} />
-            }
-          />
-      )}
+    <div className="h-screen overflow-hidden md:flex">
+      {/* --- Desktop Sidebar --- */}
+      <aside className={`hidden md:flex flex-col w-64 lg:w-72 p-4 ${sidebarBg} flex-shrink-0 border-r ${theme === 'dark' ? 'border-slate-700/50' : 'border-gray-300/50'} overflow-y-auto`}>
+        <div className="flex items-center gap-3 mb-6 flex-shrink-0">
+          <button onClick={handleLogoClick} aria-label="Home - Reset Game">
+            <Logo theme={theme} className={`w-12 h-12 ${headerTextColor}`} />
+          </button>
+          <h1 className={`text-2xl font-bold ${headerTextColor}`} style={{textShadow: theme === 'dark' ? '0 0 10px rgba(180,180,255,0.2)' : '0 0 8px rgba(0,0,0,0.1)'}}>
+              Classic Chess
+          </h1>
+        </div>
+        <div className="flex-grow">
+          <DashboardMenu {...dashboardMenuProps} />
+        </div>
+      </aside>
 
-      {showWelcomeModal && (
-        <WelcomeModal
-            isOpen={showWelcomeModal}
-            onClose={handleWelcomeModalClose}
-            theme={theme}
-        />
-      )}
-      <MenuModal
-        isOpen={isMenuOpen}
-        onClose={() => setIsMenuOpen(false)}
-        theme={theme}
-        onToggleTheme={toggleTheme}
-        onResetToMainMenu={() => resetGameToWelcomeArena(true)}
-        onSelectModeFromMenu={handleSelectModeFromWelcomeArena}
-        onSaveCurrentGame={savedGamesHook.handleSaveCurrentGame}
-        canSaveGame={gameMode === 'friend' && isGameSetupComplete && !gameState.gameStatus.isGameOver}
-        gameMode={gameMode}
-        savedGames={savedGamesHook.savedGames}
-        onLoadSavedGame={savedGamesHook.handleLoadSavedGame}
-        onDeleteSavedGame={savedGamesHook.handleDeleteSavedGame}
-        onClearAllSavedGames={savedGamesHook.handleClearAllSavedGames}
-        onOpenLayoutCustomization={() => { setIsLayoutModalOpen(true); setIsMenuOpen(false); }}
-        onOpenChessGuide={() => { setIsChessGuideOpen(true); setIsMenuOpen(false); }}
-        onOpenChangelog={() => { setIsChangelogModalOpen(true); setIsMenuOpen(false); }}
-        layoutSettings={layoutSettings}
-        onLayoutSettingsChange={handleLayoutSettingsChange}
-        onOpenGameHistory={() => setIsGameHistoryModalOpen(true)}
-        isHistoryAvailable={completedGames.length > 0}
-      />
-      {isGameHistoryModalOpen && (
-        <GameHistoryModal
-          isOpen={isGameHistoryModalOpen}
-          onClose={() => setIsGameHistoryModalOpen(false)}
-          theme={theme}
-          games={completedGames}
-          onAnalyze={handleStartAnalysis}
-          onClearHistory={handleClearGameHistory}
-        />
-      )}
-      {isLayoutModalOpen && (
-        <LayoutCustomizationModal
-            isOpen={isLayoutModalOpen}
-            currentSettings={layoutSettings}
-            onApplySettings={(newSettings) => {
-                handleLayoutSettingsChange(newSettings);
-                setIsLayoutModalOpen(false);
-            }}
-            onClose={() => setIsLayoutModalOpen(false)}
-            theme={theme}
-        />
-       )}
-       {isResignModalOpen && playerAttemptingResign && (
-        <ResignConfirmationModal
-          isOpen={isResignModalOpen}
-          onConfirm={gameState.executeResignation}
-          onCancel={() => setIsResignModalOpen(false)}
-          resigningPlayerName={playerAttemptingResign === PlayerColor.WHITE ? player1Name : player2Name}
-          winningPlayerName={playerAttemptingResign === PlayerColor.WHITE ? player2Name : player1Name}
-          theme={theme}
-        />
-      )}
-      {isRenameModalOpen && playerToRename && (
-        <RenamePlayerModal
-            isOpen={isRenameModalOpen}
-            currentName={playerToRename === PlayerColor.WHITE ? player1Name : player2Name}
-            onConfirm={executePlayerRename}
-            onCancel={cancelPlayerRename}
-            theme={theme}
-        />
-      )}
-      {gameState.gameStatus.isGameOver && isGameSetupComplete && (gameMode !== 'puzzle' || (gameState.currentPuzzle && gameState.currentPuzzle.solution.length === gameState.puzzleSolutionStep)) && (
-        <GameOverOverlay
-          gameStatus={gameState.gameStatus}
-          theme={theme}
-          onRematch={handleRematch}
-          onBackToHome={() => resetGameToWelcomeArena(false)}
-          player1Name={player1Name}
-          player2Name={player2Name}
-          onAnalyzeGame={handleAnalyzeLatestGame}
-        />
-      )}
-
-      <header className="mb-3 sm:mb-4 text-center w-full relative px-2 sm:px-4">
-        <div className="flex items-center justify-between w-full">
-            <button
-                onClick={handleLogoClick}
-                className={`p-1.5 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 ${theme === 'dark' ? 'hover:bg-slate-700/60 focus-visible:ring-sky-400' : 'hover:bg-gray-200/70 focus-visible:ring-sky-500'}`}
-                aria-label="Home - Reset Game"
-            >
-                <Logo theme={theme} className={`w-12 h-12 sm:w-14 sm:h-14 ${headerTextColor}`} />
+      {/* --- Main Content Area --- */}
+      <div className={`flex-1 flex flex-col ${mainContentGradient} overflow-y-auto`}>
+        <ToastContainer toasts={activeToasts} onDismiss={removeToast} theme={theme} />
+        
+        {/* --- Mobile Header --- */}
+        <header className="md:hidden mb-3 sm:mb-4 text-center w-full relative px-2 sm:px-4 pt-4 sm:pt-6">
+          <div className="flex items-center justify-between w-full">
+            <button onClick={handleLogoClick} className={`p-1.5 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 ${theme === 'dark' ? 'hover:bg-slate-700/60 focus-visible:ring-sky-400' : 'hover:bg-gray-200/70 focus-visible:ring-sky-500'}`} aria-label="Home - Reset Game">
+              <Logo theme={theme} className={`w-12 h-12 sm:w-14 sm:h-14 ${headerTextColor}`} />
             </button>
-            <h1 className={`text-2xl sm:text-3xl md:text-4xl font-bold ${headerTextColor} absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap`} style={{textShadow: theme === 'dark' ? '0 0 10px rgba(180,180,255,0.2)' : '0 0 8px rgba(0,0,0,0.1)'}}>
+            <h1 className={`text-2xl sm:text-3xl font-bold ${headerTextColor} absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap`} style={{textShadow: theme === 'dark' ? '0 0 10px rgba(180,180,255,0.2)' : '0 0 8px rgba(0,0,0,0.1)'}}>
                 Classic Chess
             </h1>
-            <button
-                onClick={() => setIsMenuOpen(true)}
-                className={`p-2.5 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 ${theme === 'dark' ? 'text-slate-300 hover:text-white hover:bg-slate-700/60 focus-visible:ring-sky-400' : 'text-slate-600 hover:text-slate-900 hover:bg-gray-200/70 focus-visible:ring-sky-500'}`}
-                aria-label="Open Game Menu"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-7 h-7 sm:w-8 sm:h-8">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-                </svg>
+            <button onClick={() => setIsMenuOpen(true)} className={`p-2.5 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 ${theme === 'dark' ? 'text-slate-300 hover:text-white hover:bg-slate-700/60 focus-visible:ring-sky-400' : 'text-slate-600 hover:text-slate-900 hover:bg-gray-200/70 focus-visible:ring-sky-500'}`} aria-label="Open Game Menu">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-7 h-7 sm:w-8 sm:h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
             </button>
-        </div>
-      </header>
-
-      {shouldShowWelcomeArena && (
-         <div className="flex-grow flex flex-col items-center justify-center text-center p-4 w-full">
-            <div className={`p-6 sm:p-8 md:p-10 rounded-2xl shadow-2xl w-full max-w-xl ${welcomePanelClasses}`}>
-                 <div className="flex justify-center mb-5 sm:mb-7">
-                    <PieceDisplay piece={welcomeKingPiece} size="60px" color={getPieceIconColor(PlayerColor.WHITE, theme, layoutSettings)} className="drop-shadow-lg"/>
-                </div>
-                <h2 className={`text-2xl sm:text-3xl font-bold mb-2 ${welcomeTitleColor}`} style={{textShadow: theme === 'dark' ? '0 0 8px rgba(255,255,255,0.15)' : '0 0 6px rgba(0,0,0,0.1)'}}>
-                    Welcome to the Arena!
-                </h2>
-                <p className={`text-sm sm:text-base mb-6 sm:mb-8 ${welcomeSubTextColor}`}>
-                    Choose your challenge or explore past glories.
-                </p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-                    {welcomeArenaMenuItems.map(item => {
-                        const cardThemeClasses = getWelcomeArenaCardThemeClasses(item.baseColor, theme);
-                        // @ts-ignore
-                        const glowVars = (theme === 'dark' ? welcomeArenaGlowVarsDark : welcomeArenaGlowVarsLight)[item.baseColor];
-                        return (
-                            <button key={item.id} onClick={() => handleSelectModeFromWelcomeArena(item.id)}
-                                className={`${welcomeArenaCardBaseClasses} ${cardThemeClasses}`}
-                                style={glowVars as React.CSSProperties} aria-label={item.label}>
-                                <span className="text-3xl sm:text-4xl mb-1.5 group-hover:scale-110 transition-transform duration-200">{item.icon}</span>
-                                <span className="text-xs sm:text-sm">{item.label}</span>
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
-        </div>
-      )}
-
-      {viewingHallOfFame && (
-        <HallOfFame onBackToMenu={() => { setViewingHallOfFame(false); setIsMenuOpen(true); }} theme={theme} />
-      )}
-
-      {showPlayerNameEntry && (
-        <PlayerNameEntry
-          gameMode={gameMode!}
-          onSetupComplete={handlePlayerNameSetup}
-          onBackToMenu={() => { resetGameToWelcomeArena(false); setIsMenuOpen(true);}}
-          theme={theme}
-        />
-      )}
-
-      {showOnlineGameSetup && (
-        <OnlineGameSetup
-          onGameSetupComplete={handleOnlineGameSetupComplete}
-          onBackToMenu={() => { resetGameToWelcomeArena(false); setIsMenuOpen(true);}}
-          theme={theme}
-          initialTimeLimit={timeLimitPerPlayer}
-        />
-      )}
-
-      {shouldShowGameArea && (
-        <main className="flex flex-col items-center space-y-1 sm:space-y-2 w-full mt-2">
-            <PlayerDisplayPanel
-                playerName={player2Name}
-                playerColor={PlayerColor.BLACK}
-                capturedPieces={gameState.capturedByBlack}
-                isCurrentTurn={gameState.currentPlayer === PlayerColor.BLACK && !gameState.gameStatus.isGameOver}
-                theme={theme}
-                layoutSettings={layoutSettings}
-                timeLeft={player2TimeLeft}
-                timeLimit={timeLimitPerPlayer}
-                onRenameRequest={handleRequestRename}
-                onResignRequest={() => { setPlayerAttemptingResign(PlayerColor.BLACK); setIsResignModalOpen(true); }}
-                showResignButton={layoutSettings.showResignButton}
-                isResignDisabled={!!gameState.promotionSquare || isResignModalOpen || isRenameModalOpen || gameState.gameStatus.isGameOver}
-                gameMode={gameMode}
-                isGameOver={gameState.gameStatus.isGameOver}
-            />
-
-            <div className="flex items-center justify-center w-full max-w-max mx-auto mt-2 space-x-2 sm:space-x-3">
-                 {showUndoButtonInGame ? (
-                    <button
-                        onClick={moveHistory.handleUndoMove}
-                        disabled={moveHistory.moveHistory.length === 0 || gameState.gameStatus.isGameOver || ((gameMode === 'computer' || gameMode === 'coach') && ai.isComputerThinking) || !!gameState.promotionSquare || isResignModalOpen || isRenameModalOpen}
-                        className={`${sideButtonBase} ${undoButtonTheme} w-10 h-10 sm:w-12 sm:h-12`}
-                        aria-label="Undo last move"
-                        title="Undo Move"
-                    >
-                        <FaUndo size="1.2em" />
-                    </button>
-                 ) : <div className="w-10 sm:w-12 h-10 sm:h-12" /> }
-
-                <Board boardState={gameState.boardState} onSquareClick={gameState.handleSquareClick} selectedPiecePosition={gameState.selectedPiecePosition} possibleMoves={gameState.possibleMoves} currentPlayer={gameState.currentPlayer} kingInCheckPosition={gameState.kingInCheckPosition} theme={theme} layoutSettings={layoutSettings} lastMove={gameState.lastMove} hintSuggestion={ai.hintSuggestion} hintKey={ai.hintKey}/>
-
-                {showHintButtonInGame ? (
-                    <button
-                        onClick={ai.handleRequestHint}
-                        disabled={gameState.gameStatus.isGameOver || (gameState.currentPlayer === PlayerColor.BLACK && ai.isComputerThinking) || !!gameState.promotionSquare || isResignModalOpen || isRenameModalOpen}
-                        className={`${sideButtonBase} ${hintButtonTheme} w-10 h-10 sm:w-12 sm:h-12`}
-                        aria-label="Request Coach Hint"
-                        title="Get Coach Hint"
-                    >
-                        <FaLightbulb size="1.2em" />
-                    </button>
-                ) : <div className="w-10 sm:w-12 h-10 sm:h-12" /> }
-            </div>
-
-            <PlayerDisplayPanel
-                playerName={player1Name}
-                playerColor={PlayerColor.WHITE}
-                capturedPieces={gameState.capturedByWhite}
-                isCurrentTurn={gameState.currentPlayer === PlayerColor.WHITE && !gameState.gameStatus.isGameOver}
-                theme={theme}
-                layoutSettings={layoutSettings}
-                timeLeft={player1TimeLeft}
-                timeLimit={timeLimitPerPlayer}
-                onRenameRequest={handleRequestRename}
-                onResignRequest={() => { setPlayerAttemptingResign(PlayerColor.WHITE); setIsResignModalOpen(true); }}
-                showResignButton={layoutSettings.showResignButton}
-                isResignDisabled={!!gameState.promotionSquare || isResignModalOpen || isRenameModalOpen || gameState.gameStatus.isGameOver}
-                gameMode={gameMode}
-                isGameOver={gameState.gameStatus.isGameOver}
-            />
-            
-            {gameMode === 'online' && onlineGameIdForStorage && isGameSetupComplete && (
-                <div className={`mt-2 p-2 rounded-lg text-xs shadow-md ${theme === 'dark' ? 'bg-slate-700/50 text-slate-300 border border-slate-600/50' : 'bg-gray-100/70 text-slate-600 border border-gray-300/50'}`}>
-                    Online Game ID: <strong className={theme === 'dark' ? 'text-yellow-300' : 'text-yellow-600'}>{onlineGameIdForStorage}</strong> (Same device simulation)
-                </div>
+          </div>
+        </header>
+        
+        <main className="flex-grow flex flex-col items-center justify-center p-2 sm:p-3">
+            {/* Conditional Content Rendering */}
+            {shouldShowWelcomeArena && (
+              <div className="flex-grow flex flex-col items-center justify-center text-center p-4 w-full">
+                  <div className={`p-6 sm:p-8 md:p-10 rounded-2xl shadow-2xl w-full max-w-xl ${welcomePanelClasses}`}>
+                      <div className="flex justify-center mb-5 sm:mb-7"><PieceDisplay piece={welcomeKingPiece} size="60px" color={getPieceIconColor(PlayerColor.WHITE, theme, layoutSettings)} className="drop-shadow-lg" pieceSetId={layoutSettings.pieceSetId} /></div>
+                      <h2 className={`text-2xl sm:text-3xl font-bold mb-2 ${welcomeTitleColor}`} style={{textShadow: theme === 'dark' ? '0 0 8px rgba(255,255,255,0.15)' : '0 0 6px rgba(0,0,0,0.1)'}}>Welcome to the Arena!</h2>
+                      <p className={`text-sm sm:text-base mb-6 sm:mb-8 ${welcomeSubTextColor}`}>Choose your challenge or explore past glories.</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+                          {welcomeArenaMenuItems.map(item => {
+                              const cardThemeClasses = getWelcomeArenaCardThemeClasses(item.baseColor, theme);
+                              // @ts-ignore
+                              const glowVars = (theme === 'dark' ? welcomeArenaGlowVarsDark : welcomeArenaGlowVarsLight)[item.baseColor];
+                              return (<button key={item.id} onClick={() => handleSelectModeFromWelcomeArena(item.id)} className={`${welcomeArenaCardBaseClasses} ${cardThemeClasses}`} style={glowVars as React.CSSProperties} aria-label={item.label}><span className="text-3xl sm:text-4xl mb-1.5 group-hover:scale-110 transition-transform duration-200">{item.icon}</span><span className="text-xs sm:text-sm">{item.label}</span></button>);
+                          })}
+                      </div>
+                  </div>
+              </div>
+            )}
+            {viewingHallOfFame && <HallOfFame onBackToMenu={() => { setViewingHallOfFame(false); setIsMenuOpen(true); }} theme={theme} />}
+            {showPlayerNameEntry && <PlayerNameEntry gameMode={gameMode!} onSetupComplete={handlePlayerNameSetup} onBackToMenu={() => { resetGameToWelcomeArena(false); setIsMenuOpen(true);}} theme={theme} />}
+            {showOnlineGameSetup && <OnlineGameSetup onGameSetupComplete={handleOnlineGameSetupComplete} onBackToMenu={() => { resetGameToWelcomeArena(false); setIsMenuOpen(true);}} theme={theme} initialTimeLimit={gameState.timeLimitPerPlayer}/>}
+            {shouldShowGameArea && (
+              <div className="flex flex-col items-center space-y-1 sm:space-y-2 w-full mt-2">
+                  <PlayerDisplayPanel playerName={player2Name} playerColor={PlayerColor.BLACK} capturedPieces={gameState.capturedByBlack} isCurrentTurn={gameState.currentPlayer === PlayerColor.BLACK && !gameState.gameStatus.isGameOver} theme={theme} layoutSettings={layoutSettings} timeLeft={gameState.player2TimeLeft} timeLimit={gameState.timeLimitPerPlayer} onRenameRequest={handleRequestRename} onResignRequest={() => { setPlayerAttemptingResign(PlayerColor.BLACK); setIsResignModalOpen(true); }} showResignButton={layoutSettings.showResignButton} isResignDisabled={!!gameState.promotionSquare || isResignModalOpen || isRenameModalOpen || gameState.gameStatus.isGameOver} gameMode={gameMode} isGameOver={gameState.gameStatus.isGameOver} />
+                  <div className="flex items-center justify-center w-full max-w-max mx-auto mt-2 space-x-2 sm:space-x-3">
+                      {showUndoButtonInGame ? (<button onClick={handleUndoMoveWithAIReset} disabled={gameState.moveHistory.length === 0 || gameState.gameStatus.isGameOver || ((gameMode === 'computer' || gameMode === 'coach') && ai.isComputerThinking) || !!gameState.promotionSquare || isResignModalOpen || isRenameModalOpen} className={`${sideButtonBase} ${undoButtonTheme} w-10 h-10 sm:w-12 sm:h-12`} aria-label="Undo last move" title="Undo Move"><FaUndo size="1.2em" /></button>) : <div className="w-10 sm:w-12 h-10 sm:h-12" /> }
+                      <Board boardState={gameState.boardState} onSquareClick={gameState.handleSquareClick} selectedPiecePosition={gameState.selectedPiecePosition} possibleMoves={gameState.possibleMoves} currentPlayer={gameState.currentPlayer} kingInCheckPosition={gameState.kingInCheckPosition} theme={theme} layoutSettings={layoutSettings} lastMove={gameState.lastMove} hintSuggestion={ai.hintSuggestion} hintKey={ai.hintKey}/>
+                      {showHintButtonInGame ? (<button onClick={ai.handleRequestHint} disabled={gameState.gameStatus.isGameOver || (gameState.currentPlayer === PlayerColor.BLACK && ai.isComputerThinking) || !!gameState.promotionSquare || isResignModalOpen || isRenameModalOpen} className={`${sideButtonBase} ${hintButtonTheme} w-10 h-10 sm:w-12 sm:h-12`} aria-label="Request Coach Hint" title="Get Coach Hint"><FaLightbulb size="1.2em" /></button>) : <div className="w-10 sm:w-12 h-10 sm:h-12" /> }
+                  </div>
+                  <PlayerDisplayPanel playerName={player1Name} playerColor={PlayerColor.WHITE} capturedPieces={gameState.capturedByWhite} isCurrentTurn={gameState.currentPlayer === PlayerColor.WHITE && !gameState.gameStatus.isGameOver} theme={theme} layoutSettings={layoutSettings} timeLeft={gameState.player1TimeLeft} timeLimit={gameState.timeLimitPerPlayer} onRenameRequest={handleRequestRename} onResignRequest={() => { setPlayerAttemptingResign(PlayerColor.WHITE); setIsResignModalOpen(true); }} showResignButton={layoutSettings.showResignButton} isResignDisabled={!!gameState.promotionSquare || isResignModalOpen || isRenameModalOpen || gameState.gameStatus.isGameOver} gameMode={gameMode} isGameOver={gameState.gameStatus.isGameOver} />
+                  {gameMode === 'online' && onlineGameIdForStorage && isGameSetupComplete && (<div className={`mt-2 p-2 rounded-lg text-xs shadow-md ${theme === 'dark' ? 'bg-slate-700/50 text-slate-300 border border-slate-600/50' : 'bg-gray-100/70 text-slate-600 border border-gray-300/50'}`}>Online Game ID: <strong className={theme === 'dark' ? 'text-yellow-300' : 'text-yellow-600'}>{onlineGameIdForStorage}</strong> (Same device simulation)</div>)}
+              </div>
+            )}
+            {shouldShowPuzzleArea && gameState.currentPuzzle && (
+              <div className="flex flex-col items-center space-y-3 sm:space-y-4 w-full mt-2">
+                  <PuzzleControls theme={theme} puzzle={gameState.currentPuzzle} onNextPuzzle={() => gameState.loadPuzzle(gameState.currentPuzzleIndex + 1 >= 10 ? 0 : gameState.currentPuzzleIndex + 1)} onPrevPuzzle={() => gameState.loadPuzzle(gameState.currentPuzzleIndex - 1 < 0 ? 9 : gameState.currentPuzzleIndex - 1)} onResetPuzzle={() => gameState.loadPuzzle(gameState.currentPuzzleIndex)} isFirstPuzzle={gameState.currentPuzzleIndex === 0} isLastPuzzle={gameState.currentPuzzleIndex === 9}/>
+                  <Board boardState={gameState.boardState} onSquareClick={gameState.handleSquareClick} selectedPiecePosition={gameState.selectedPiecePosition} possibleMoves={gameState.possibleMoves} currentPlayer={gameState.currentPlayer} kingInCheckPosition={gameState.kingInCheckPosition} theme={theme} layoutSettings={layoutSettings} lastMove={gameState.lastMove} hintSuggestion={null} />
+              </div>
             )}
         </main>
-      )}
+        
+        <footer className={`mt-auto pt-6 sm:pt-8 text-center text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'} flex-shrink-0`}>
+          <div className="mb-2"><AdBanner theme={theme} slot="YOUR_AD_SLOT_ID"/></div>
+          <div className="mb-2 space-x-4"><button onClick={() => setInfoPage('about')} className="hover:underline focus:outline-none focus:ring-1 rounded">About the Developer</button><button onClick={() => setInfoPage('terms')} className="hover:underline focus:outline-none focus:ring-1 rounded">Terms & Conditions</button><button onClick={() => setInfoPage('privacy')} className="hover:underline focus:outline-none focus:ring-1 rounded">Privacy Policy</button></div>
+          <p>{'©'} 2025 Joyonto Karmakar. All Rights Reserved.</p>
+        </footer>
 
-      {shouldShowPuzzleArea && gameState.currentPuzzle && (
-        <main className="flex flex-col items-center space-y-3 sm:space-y-4 w-full mt-2">
-            <PuzzleControls
-                theme={theme}
-                puzzle={gameState.currentPuzzle}
-                onNextPuzzle={() => gameState.loadPuzzle(gameState.currentPuzzleIndex + 1 >= 10 ? 0 : gameState.currentPuzzleIndex + 1)} // Assuming PUZZLES.length
-                onPrevPuzzle={() => gameState.loadPuzzle(gameState.currentPuzzleIndex - 1 < 0 ? 9 : gameState.currentPuzzleIndex - 1)} // Assuming PUZZLES.length
-                onResetPuzzle={() => gameState.loadPuzzle(gameState.currentPuzzleIndex)}
-                isFirstPuzzle={gameState.currentPuzzleIndex === 0}
-                isLastPuzzle={gameState.currentPuzzleIndex === 9} // Assuming PUZZLES.length
-            />
-            <Board boardState={gameState.boardState} onSquareClick={gameState.handleSquareClick} selectedPiecePosition={gameState.selectedPiecePosition} possibleMoves={gameState.possibleMoves} currentPlayer={gameState.currentPlayer} kingInCheckPosition={gameState.kingInCheckPosition} theme={theme} layoutSettings={layoutSettings} lastMove={gameState.lastMove} hintSuggestion={null} />
-        </main>
-      )}
-
-      {showTimeModeSelection && (
-        <TimeModeSelectionModal
-          isOpen={isTimeModeSelectionOpen}
-          onClose={handleTimeModeSelected}
-          theme={theme}
-        />
-      )}
-      {isOnlineWarningModalOpen && (
-        <OnlineWarningModal
-            isOpen={isOnlineWarningModalOpen}
-            onProceed={handleProceedFromOnlineWarning}
-            onCancel={() => { setIsOnlineWarningModalOpen(false); resetGameToWelcomeArena(false); }}
-            theme={theme}
-        />
-      )}
-      {gameState.promotionSquare && gameMode && isGameSetupComplete && !gameState.gameStatus.isGameOver && (
-        <PromotionModal playerColor={gameState.boardState[gameState.promotionSquare[0]][gameState.promotionSquare[1]]?.color || gameState.currentPlayer} onPromote={gameState.handlePromotion} theme={theme} layoutSettings={layoutSettings} />
-      )}
-      {isChessGuideOpen && (
-        <ChessGuide
-            isOpen={isChessGuideOpen}
-            onClose={() => { setIsChessGuideOpen(false); setIsMenuOpen(true); }}
-            theme={theme}
-            layoutSettings={layoutSettings}
-        />
-      )}
-      {isChangelogModalOpen && (
-        <ChangelogModal
-          isOpen={isChangelogModalOpen}
-          onClose={() => { setIsChangelogModalOpen(false); setIsMenuOpen(true); }}
-          theme={theme}
-        />
-      )}
-       <footer className={`mt-auto pt-6 sm:pt-8 text-center text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
-        <div className="mb-2">
-          <AdBanner 
-            theme={theme}
-            slot="YOUR_AD_SLOT_ID"
-          />
-        </div>
-        <div className="mb-2 space-x-4">
-          <button onClick={() => setInfoPage('about')} className="hover:underline focus:outline-none focus:ring-1 rounded">About the Developer</button>
-          <button onClick={() => setInfoPage('terms')} className="hover:underline focus:outline-none focus:ring-1 rounded">Terms & Conditions</button>
-          <button onClick={() => setInfoPage('privacy')} className="hover:underline focus:outline-none focus:ring-1 rounded">Privacy Policy</button>
-        </div>
-        <p>{'©'} 2025 Joyonto Karmakar. All Rights Reserved.</p>
-      </footer>
+        {/* --- Modals and Overlays --- */}
+        {infoPage && <InfoModal isOpen={!!infoPage} onClose={() => setInfoPage(null)} theme={theme} title={infoPage === 'about' ? 'About the Developer' : infoPage === 'terms' ? 'Terms & Conditions' : 'Privacy Policy'} content={infoPage === 'about' ? <AboutContent theme={theme} /> : infoPage === 'terms' ? <TermsContent theme={theme} /> : <PrivacyContent theme={theme} />} />}
+        {showWelcomeModal && <WelcomeModal isOpen={showWelcomeModal} onClose={handleWelcomeModalClose} theme={theme} />}
+        <MenuModal {...dashboardMenuProps} isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+        {isGameHistoryModalOpen && <GameHistoryModal isOpen={isGameHistoryModalOpen} onClose={() => setIsGameHistoryModalOpen(false)} theme={theme} games={completedGames} onAnalyze={handleStartAnalysis} onClearHistory={handleClearGameHistory} />}
+        {isLayoutModalOpen && <LayoutCustomizationModal isOpen={isLayoutModalOpen} currentSettings={layoutSettings} onApplySettings={(newSettings) => { handleLayoutSettingsChange(newSettings); setIsLayoutModalOpen(false); }} onClose={() => setIsLayoutModalOpen(false)} theme={theme} />}
+        {isResignModalOpen && playerAttemptingResign && <ResignConfirmationModal isOpen={isResignModalOpen} onConfirm={gameState.executeResignation} onCancel={() => setIsResignModalOpen(false)} resigningPlayerName={playerAttemptingResign === PlayerColor.WHITE ? player1Name : player2Name} winningPlayerName={playerAttemptingResign === PlayerColor.WHITE ? player2Name : player1Name} theme={theme} />}
+        {isRenameModalOpen && playerToRename && <RenamePlayerModal isOpen={isRenameModalOpen} currentName={playerToRename === PlayerColor.WHITE ? player1Name : player2Name} onConfirm={executePlayerRename} onCancel={cancelPlayerRename} theme={theme} />}
+        {gameState.gameStatus.isGameOver && isGameSetupComplete && (gameMode !== 'puzzle' || (gameState.currentPuzzle && gameState.currentPuzzle.solution.length === gameState.puzzleSolutionStep)) && <GameOverOverlay gameStatus={gameState.gameStatus} theme={theme} onRematch={handleRematch} onBackToHome={() => resetGameToWelcomeArena(false)} player1Name={player1Name} player2Name={player2Name} onAnalyzeGame={handleAnalyzeLatestGame} />}
+        {showTimeModeSelection && <TimeModeSelectionModal isOpen={isTimeModeSelectionOpen} onClose={handleTimeModeSelected} theme={theme} />}
+        {isOnlineWarningModalOpen && <OnlineWarningModal isOpen={isOnlineWarningModalOpen} onProceed={handleProceedFromOnlineWarning} onCancel={() => { setIsOnlineWarningModalOpen(false); resetGameToWelcomeArena(false); }} theme={theme} />}
+        {gameState.promotionSquare && gameMode && isGameSetupComplete && !gameState.gameStatus.isGameOver && <PromotionModal playerColor={gameState.boardState[gameState.promotionSquare[0]][gameState.promotionSquare[1]]?.color || gameState.currentPlayer} onPromote={gameState.handlePromotion} theme={theme} layoutSettings={layoutSettings} />}
+        {isChessGuideOpen && <ChessGuide isOpen={isChessGuideOpen} onClose={() => { setIsChessGuideOpen(false); setIsMenuOpen(true); }} theme={theme} layoutSettings={layoutSettings} />}
+        {isChangelogModalOpen && <ChangelogModal isOpen={isChangelogModalOpen} onClose={() => { setIsChangelogModalOpen(false); setIsMenuOpen(true); }} theme={theme} />}
+      </div>
     </div>
   );
 };

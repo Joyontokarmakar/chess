@@ -1,4 +1,3 @@
-
 export type Theme = 'light' | 'dark';
 
 export enum PlayerColor {
@@ -142,10 +141,12 @@ export interface HallOfFameEntry {
   winReason?: GameOverReason | 'draw';
 }
 
-export type BoardStyleId = 'default-dark' | 'default-light' | 'classic-wood' | 'cool-blue' | 'forest-green';
+export type BoardStyleId = 'default-dark' | 'default-light' | 'classic-wood' | 'cool-blue' | 'forest-green' | 'minimal-dark' | 'minimal-light';
+export type PieceSetId = 'default' | 'merida' | 'staunton';
 
 export interface LayoutSettings {
   boardStyleId: BoardStyleId;
+  pieceSetId: PieceSetId;
   whitePieceColor?: string;
   blackPieceColor?: string;
   isSoundEnabled: boolean;
@@ -158,7 +159,6 @@ export interface LayoutSettings {
 export interface ChangelogVersion {
   version: string;
   title: string;
-  date?: string;
   features: string[];
 }
 

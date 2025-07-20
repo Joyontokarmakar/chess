@@ -1,4 +1,5 @@
 
+
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { BoardState, PlayerColor, CastlingRights, Position, PieceType, AIMove, Piece, AIDifficultyLevel, MoveHistoryEntry, GameAnalysis, AnalyzedMove } from '../types';
 import { getPossibleMoves } from './chessLogic';
@@ -138,7 +139,7 @@ Board is 0-indexed: row 0 is Black's back rank, col 0 is Queen-side. Only legal 
 
   try {
     const response: GenerateContentResponse = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview-04-17",
+      model: "gemini-2.5-flash",
       contents: JSON.stringify(promptPayload),
       config: {
         systemInstruction: systemInstruction,
@@ -224,7 +225,7 @@ Explain concisely (1-2 sentences, max 30 words) why this specific move (${moveDe
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview-04-17",
+      model: "gemini-2.5-flash",
       contents: `Explain the strategic value of the move: ${moveDescription}.`,
       config: {
         systemInstruction: systemInstruction,
@@ -295,7 +296,7 @@ Do NOT include any text outside of the JSON object. The entire output must be va
 
     try {
         const response: GenerateContentResponse = await ai.models.generateContent({
-            model: "gemini-2.5-flash-preview-04-17",
+            model: "gemini-2.5-flash",
             contents: JSON.stringify(promptPayload),
             config: {
                 systemInstruction: systemInstruction,

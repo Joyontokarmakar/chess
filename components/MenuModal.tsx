@@ -5,6 +5,7 @@ import { Theme, GameMode as AppGameMode, LayoutSettings, WelcomeArenaMenuItemId,
 import ThemeToggle from './ThemeToggle';
 import SavedGamesList from './SavedGamesList';
 import type { SavedGame } from '../types';
+import { FaUsers } from 'react-icons/fa';
 
 interface MenuModalProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ interface MenuModalProps {
   onOpenChangelog: () => void; // Added for Changelog
   onOpenGameHistory: () => void;
   isHistoryAvailable: boolean;
+  visitorCount: number;
 }
 
 type MenuView = 'main' | 'savedGames' | 'gameSettings';
@@ -55,6 +57,7 @@ const MenuModal: React.FC<MenuModalProps> = ({
   onOpenChangelog,
   onOpenGameHistory,
   isHistoryAvailable,
+  visitorCount,
 }) => {
   const [menuView, setMenuView] = useState<MenuView>('main');
 
@@ -68,7 +71,8 @@ const MenuModal: React.FC<MenuModalProps> = ({
   const modeHeaderClass = `text-xs font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'} my-1.5 text-center`;
   const scrollbarStyles = theme === 'dark' ? 'scrollbar-thumb-slate-600 scrollbar-track-slate-700/50' : 'scrollbar-thumb-gray-400 scrollbar-track-gray-200/50';
   const settingsToggleContainerClass = `p-0 rounded-lg border-none ${theme === 'dark' ? 'bg-slate-700/60 border-slate-600/80' : 'bg-gray-200/80 border-gray-300/80'}`;
-
+  const visitorCountTextColor = theme === 'dark' ? 'text-green-300' : 'text-green-600';
+  const visitorCountContainerBg = theme === 'dark' ? 'bg-slate-900/40' : 'bg-slate-300/40';
 
   const getButtonThemeClasses = (action: 'save' | 'load' | 'reset' | 'themeContainer' | 'close' | 'mode' | 'hof' | 'customize_layout' | 'chess_guide' | 'game_settings' | 'sound_toggle_container' | 'back_to_main' | 'puzzle_mode' | 'changelog' | 'coach_mode' | 'analyze_game', baseColor?: string) => {
     const commonButtonStyles = `${smallWideButtonBase}`;
@@ -345,6 +349,18 @@ const MenuModal: React.FC<MenuModalProps> = ({
               >
                 <span className="mr-2 text-lg">🚪</span> Exit to Main Menu
               </button>
+
+              <hr className={separatorClass} />
+              
+              <div className={`flex items-center justify-center gap-2 p-2 rounded-lg ${visitorCountContainerBg}`}>
+                  <FaUsers className={`w-5 h-5 ${visitorCountTextColor}`} />
+                  <span className={`font-semibold ${visitorCountTextColor}`}>
+                      {visitorCount.toLocaleString()}
+                  </span>
+                  <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Total Visitors
+                  </span>
+              </div>
             </div>
           )}
 

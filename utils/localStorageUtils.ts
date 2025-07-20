@@ -177,6 +177,7 @@ export function getLayoutSettings(): LayoutSettings | null {
       // Ensure all keys for LayoutSettings are returned with defaults for backward compatibility
       return {
         boardStyleId: parsed.boardStyleId || 'default-dark',
+        pieceSetId: parsed.pieceSetId || 'default',
         whitePieceColor: parsed.whitePieceColor,
         blackPieceColor: parsed.blackPieceColor,
         isSoundEnabled: typeof parsed.isSoundEnabled === 'boolean' ? parsed.isSoundEnabled : true,
@@ -197,6 +198,7 @@ export function setLayoutSettings(settings: LayoutSettings): void {
     // Only store known LayoutSettings properties
     const settingsToStore: LayoutSettings = {
         boardStyleId: settings.boardStyleId,
+        pieceSetId: settings.pieceSetId,
         whitePieceColor: settings.whitePieceColor,
         blackPieceColor: settings.blackPieceColor,
         isSoundEnabled: settings.isSoundEnabled,

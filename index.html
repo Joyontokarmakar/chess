@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,14 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>React Chess Championship | Play Free Chess Online with AI</title>
   <meta name="description" content="Play chess online for free! Challenge friends, test your skills against a smart AI opponent, or enjoy local two-player games. Features customizable themes, game saving, and a Hall of Fame. Learn chess rules with our in-game guide. Built with React.">
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
   <script src="https://cdn.tailwindcss.com"></script>
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX"
      crossorigin="anonymous"></script>
   <style>
     :root {
-      --body-bg-light: linear-gradient(to bottom right, #E0E7FF, #F3F4F6, #E5E7EB); /* Light indigo/slate gradient */
-      --body-bg-dark: linear-gradient(to bottom right, #1E293B, #111827, #0F172A); /* Dark slate/gray gradient */
+      /* Solid Backgrounds for Body */
+      --body-bg-color-light: #F3F4F6; /* gray-100 */
+      --body-bg-color-dark: #111827;  /* gray-900 */
+      
       --text-light: #F3F4F6; /* slate-100 */
       --text-dark: #1F2937; /* gray-800 */
       
@@ -32,12 +33,12 @@
       transition: background-color 0.3s ease, color 0.3s ease;
     }
     body.theme-light {
-      background: var(--body-bg-light);
+      background-color: var(--body-bg-color-light);
       color: var(--text-dark);
       --list-bullet-color: #3B82F6; /* blue-500 */
     }
     body.theme-dark {
-      background: var(--body-bg-dark);
+      background-color: var(--body-bg-color-dark);
       color: var(--text-light);
       --list-bullet-color: #93C5FD; /* blue-300 */
     }
@@ -229,6 +230,11 @@
       line-height: inherit;
     }
 
+    /* Drag and Drop Cursor */
+    body.dragging, body.dragging * {
+      cursor: grabbing !important;
+    }
+
   </style>
 <script type="importmap">
 {
@@ -240,7 +246,8 @@
     "firebase/": "https://esm.sh/firebase@^11.9.1/",
     "react-icons/fa": "https://esm.sh/react-icons/fa?pin=v6",
     "react-icons/gi": "https://esm.sh/react-icons/gi?pin=v6",
-    "react-icons/": "https://esm.sh/react-icons@^5.5.0/"
+    "react-icons/": "https://esm.sh/react-icons@^5.5.0/",
+    "countapi-js": "https://esm.sh/countapi-js"
   }
 }
 </script>

@@ -19,7 +19,7 @@ const PlayerNameEntry: React.FC<PlayerNameEntryProps> = ({ gameMode, onSetupComp
     if (gameMode === 'computer') {
       onSetupComplete(p1Name.trim() || "Player 1", AI_PLAYER_NAME, selectedDifficulty);
     } else if (gameMode === 'friend') {
-      onSetupComplete(p1Name.trim() || "Player 1", p2Name.trim() || "Player 2");
+      onSetupComplete(p1Name.trim() || "Player 1", p2Name.trim() || "Player 2", undefined);
     } else if (gameMode === 'coach') {
       onSetupComplete(p1Name.trim() || "Player 1", COACH_AI_PLAYER_NAME, AIDifficultyLevel.GRANDMASTER);
     }

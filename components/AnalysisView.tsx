@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { GameAnalysis, LayoutSettings, MoveHistoryEntry, Theme, AnalyzedMove, PlayerColor } from '../types';
 import Board from './Board';
@@ -27,41 +28,28 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({
   player1Name,
   player2Name,
 }) => {
-  const [currentMoveIdx, setCurrentMoveIdx] = useState<number>(0); // Start at the first move
-
-  useEffect(() => {
-    // When analysis loads, ensure we are on the first move if we were at the initial state.
-    if (analysis && !isAnalyzing && currentMoveIdx < 0) {
-      setCurrentMoveIdx(0);
-    }
-  }, [analysis, isAnalyzing, currentMoveIdx]);
-
+  const [currentMoveIdx, setCurrentMoveIdx] = useState<number>(-1); // Start before the first move
 
   const { boardToDisplay, analyzedMoveForBoard, bestAlternativeForBoard } = useMemo(() => {
-    if (moveHistory.length === 0) {
+    // If there's no analysis or move history, show the initial empty board.
+    if (!analysis || moveHistory.length === 0) {
       return { boardToDisplay: createInitialBoard(), analyzedMoveForBoard: null, bestAlternativeForBoard: null };
     }
     
-    let boardState;
-    if (currentMoveIdx < 0) {
-        // Initial board state before any moves
-        boardState = moveHistory[0]?.boardState || createInitialBoard();
-    } else {
-        // Find the move history entry *after* the current move has been made
-        const moveEntry = moveHistory.find(h => h.lastMove && h.lastMove.from[0] === analysis?.fullAnalysis[currentMoveIdx]?.from[0] && h.lastMove.from[1] === analysis?.fullAnalysis[currentMoveIdx]?.from[1] && h.lastMove.to[0] === analysis?.fullAnalysis[currentMoveIdx]?.to[0] && h.lastMove.to[1] === analysis?.fullAnalysis[currentMoveIdx]?.to[1]);
-        
-        // The board state is from the NEXT entry in the history, which is the state AFTER the move was made.
-        const stateEntryIndex = moveHistory.findIndex(h => h.fenBeforeMove === moveEntry?.fenBeforeMove);
-        
-        boardState = moveHistory[stateEntryIndex + 1]?.boardState || moveHistory[moveHistory.length -1].boardState;
-    }
+    // The state before any moves is at moveHistory[0].
+    // The state after move `i` is at moveHistory[i+1].
+    // `currentMoveIdx` of -1 means we want the initial board state.
+    const boardStateIndex = currentMoveIdx + 1;
 
-    // The analyzed move corresponds to the current state.
-    const analyzedMove = analysis?.fullAnalysis[currentMoveIdx];
+    // Get the board state for the selected move. Fallback to the last known state if out of bounds.
+    const boardState = moveHistory[boardStateIndex]?.boardState || moveHistory[moveHistory.length - 1]?.boardState || createInitialBoard();
+    
+    // Get the analysis data for the selected move.
+    const analyzedMove = currentMoveIdx >= 0 ? analysis.fullAnalysis[currentMoveIdx] : null;
     
     return { 
         boardToDisplay: boardState,
-        analyzedMoveForBoard: analyzedMove || null,
+        analyzedMoveForBoard: analyzedMove,
         bestAlternativeForBoard: analyzedMove?.bestAlternative || null
     };
   }, [currentMoveIdx, moveHistory, analysis]);
