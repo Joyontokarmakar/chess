@@ -1,69 +1,133 @@
+# ♟️ Custom Chess Game
 
-# Classic Chess Championship - Free Online Chess Game
+A modern, feature-rich, and fully customizable **chess game** built with React, TypeScript, and Tailwind CSS. Play chess **locally with a friend**, **against a smart AI**, or enjoy a **tactics training mode** — all from your browser. Designed for both beginners and experienced players, this game blends classic chess rules with a sleek, intuitive interface.
 
-Hello! This is a fun and interactive **free chess game** you can play right in your browser. It's packed with cool features to make your chess experience awesome. You can **play chess with friends** locally, try to beat the challenging **chess AI** opponent, or simulate an **online chess** match. Plus, you can customize how the game looks to suit your style! This **React chess application** is designed for both beginners and seasoned players.
+## 🚀 Live Demo
 
-## How to Play (Features & Chess Strategy)
+👉 [Play the Game](#)  
+(*Replace this with your actual deployed link*)
 
-Master the game with standard chess rules and unique features:
+---
 
-*   **Standard Chess Rules:** All fundamental rules are implemented.
-    *   **Pawn Promotion:** If your pawn reaches the opponent's back rank, it can be promoted to a Queen, Rook, Bishop, or Knight – a key element of **chess strategy**.
-    *   **Castling:** Perform the special King and Rook move for King safety.
-    *   **En Passant:** Execute this special pawn capture.
-*   **Legal Move Validation:** The game ensures all moves are valid according to chess rules.
-*   **Game End Conditions:** The game accurately detects:
-    *   **Checkmate:** Trap the opponent's King to win!
-    *   **Stalemate:** If no legal moves can be made and the King is not in check, the game is a draw.
-*   **King in Check Indication:** Visual alerts if your King is under attack. **Learn chess rules** about check and checkmate as you play.
+## 🧠 Game Modes
 
-## Ways to Play Chess
+- **Player vs AI** – Choose difficulty: *Easy*, *Medium*, *Hard*, or *Grandmaster*
+- **Player vs Player** – Play with a friend locally on the same device
+- **Puzzle Mode / Tactics Trainer** – Solve chess puzzles to sharpen your skills
+- **Simulated Online Mode** – Share a unique Game ID to play on the same device (not internet multiplayer)
 
-*   **Play with a Friend (Local Multiplayer):** Two players can compete on the same computer.
-*   **Play Against the Computer (Chess AI):** Challenge our intelligent AI opponent.
-    *   Powered by Gemini AI for strong gameplay (requires API key).
-    *   A basic offline AI is available if the Gemini API key is not configured.
-*   **Play Online (Simulated):**
-    *   Create a unique Game ID to share with a friend for a simulated online match.
-    *   *Note: This feature uses localStorage for local network or same-device play, not true internet multiplayer.*
+---
 
-## Customize Your Chess Experience
+## 🕹️ Core Gameplay Features
 
-*   **Player Names:** Personalize the game by setting names for Player 1 and Player 2.
-*   **Light/Dark Theme:** Switch between sleek light and dark visual modes.
-*   **Appearance Customization:**
-    *   **Board Styles:** Choose from various board themes like Classic Wood, Cool Blue, and Forest Green.
-    *   **Piece Colors:** Select distinct colors for White and Black pieces.
-    *   An intuitive modal allows you to preview and apply these settings.
+- ♟️ **Standard Rules**: Pawn Promotion, Castling, En Passant, Check, Checkmate, and Stalemate detection
+- ✅ **Legal Move Validation**
+- 🧠 **AI Engine**:
+  - Gemini-powered AI (API key required)
+  - Basic offline fallback AI
+- ⏳ **Timer Mode**
+- 🔁 **Undo Moves** (optional)
+- 💡 **AI Move Hints** (optional)
+- 🎉 **Confetti celebration** on checkmate
+- 🔊 **Game Sounds**: Move, capture, win
+- 👑 **Captured Pieces Display**
+- 🔔 **Smart Toast Notifications**: “Check”, “Your Turn”, “Checkmate”, etc.
+- 🧭 **In-Game Chess Guide** for beginners and rule refreshers
 
-## User Interface & Experience
+---
 
-*   **Intuitive Controls:** Click a piece, then click its destination square to move.
-*   **Possible Moves Display:** See all valid moves for your selected piece.
-*   **Captured Pieces Display:** Clearly track pieces captured by each player.
-*   **Turn Indication:** Always know whose turn it is.
-*   **Game Status Messages:** Stay informed with messages like "Your turn," "King in Check!", or "Checkmate!"
-*   **Promotion Modal:** Easily choose your promotion piece when a pawn reaches the final rank.
-*   **Welcome Screen:** A user-friendly start screen to select game modes or view the Hall of Fame.
-*   **Responsive Design:** Enjoy a seamless experience on desktops, tablets, and mobile phones.
+## 🎨 Personalization & Themes
 
-## Manage Your Games
+- 🌓 **Light / Dark Modes**
+- 🎨 **Custom Board Styles**: Classic Wood, Cool Blue, Forest Green, etc.
+- ♔ **Multiple Piece Sets**: Default, Staunton, Merida
+- 🖊️ Rename players mid-game
+- 🧰 UI Toggle Options:
+  - Show/Hide Resign, Undo, Hint buttons
+  - Enable/Disable toast messages
 
-*   **Game Menu:** Access all game options through a convenient menu.
-*   **Save & Load Games:**
-    *   Save your current game to resume later.
-    *   Load previously saved games.
-    *   Delete unwanted saved games.
-*   **Hall of Fame:**
-    *   Tracks winners from "Play with Friend" and "Play AI" modes.
-    *   Displays winner, opponent, and game date.
-    *   Option to clear the Hall of Fame.
-*   **Reset & New Game:** Easily start a new game or return to the main menu.
-*   **In-Game Chess Guide:** **Learn chess rules**, piece movements, and special moves with our comprehensive built-in guide. Perfect for beginners or as a quick refresher.
+---
 
-## Technical Details
+## 💻 Progressive Web App (PWA)
 
-*   Built with modern web technologies: React, TypeScript, and Tailwind CSS.
-*   Utilizes localStorage for persisting theme preferences, saved games, layout settings, and Hall of Fame entries.
+- 📲 **Installable App**: Add the chess game to your home screen or desktop for faster access
+- 🌐 **Offline Play Support**: Fully functional without an internet connection (non-AI modes)
+- 🖥️ **Desktop Sidebar Layout**: Quick access to game modes, settings, and navigation
 
-Have fun playing this engaging **chess game** and sharpening your **chess strategy**!
+---
+
+## 🧩 Learn & Improve
+
+- 📖 **Chess Guide**: Piece movement, rules, and strategies built right into the app
+- 👀 Visual indicators for:
+  - Last move made
+  - Pieces under check
+  - Available legal moves
+- 📊 **Game History & Analysis**: View and analyze your last 10 games move-by-move
+
+---
+
+## 💾 Game Management
+
+- 💾 **Save/Load Games** using `localStorage`
+- 🏆 **Hall of Fame**:
+  - Tracks winners and match info for AI and local games
+  - Clear history anytime
+- 🔁 **Start New Game / Reset Options**
+- 📋 **Game Menu** with modals and navigational UI
+- 📄 **Informational Pages**:
+  - About the Developer
+  - Terms & Conditions
+  - Privacy Policy
+
+---
+
+## 🔄 Drag & Drop Movement
+
+You can now move pieces by **clicking or dragging** — your choice! Intuitive controls make it easy for all ages.
+
+---
+
+## 🆕 Version Highlights
+
+### 🆕 Version 5.0 – *PWA & UI/UX Enhancements* (2024-08-10)
+- ✅ **Progressive Web App (PWA)**: Install on mobile/desktop for native-like usage
+- ✅ **Offline Mode** for non-AI games
+- ✅ **Desktop Sidebar Layout** for better navigation
+- ✅ **Multiple Piece Sets**: Choose between Default, Staunton, and Merida
+- ✅ **Drag-and-Drop Support** for moving pieces
+- 🔄 Smoother transitions, improved responsiveness
+- 🐞 Fixed AI setup and critical UI state error
+
+### Version 4.3 – *Architectural Fixes & UI Enhancements*
+- 🔧 Fixed major logic bug in launching game modes
+- 📊 Added Multi-Game History + detailed move analysis
+- 📄 Added “About,” “Terms,” and “Privacy Policy” pages
+- 🖼️ Visual polish: Gradient buttons, icon improvements
+- 🎮 Improved Game Over experience with rematch and return options
+- 🐞 Puzzle mode bug fixed
+
+### Version 4.2 – *Modern UX Upgrade*
+- Welcome screen for new players
+- Resign, Undo, Hint buttons improved and repositioned
+- Mobile responsiveness upgraded
+
+---
+
+## 📱 Responsive Design
+
+- Seamless experience across **desktops**, **tablets**, and **mobile phones**
+- Adaptive menus, layouts, and modals for every screen size
+
+---
+
+## 📂 Project Structure
+
+```bash
+📁 /public
+📁 /src
+ ├── assets/       # Icons, graphics
+ ├── components/   # Reusable React components
+ ├── data/         # Chess puzzles, guide content
+ ├── utils/        # Game logic, helpers
+ └── App.tsx       # Main app entry point
